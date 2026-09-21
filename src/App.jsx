@@ -6,6 +6,8 @@ import CreditManagement from './pages/CreditManagement';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Placeholder from './pages/Placeholder';
+import VoucherCreate from './pages/VoucherCreate';
+import VoucherList from './pages/VoucherList';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -32,22 +34,8 @@ function AuthedApp() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/credit" element={<CreditManagement />} />
-        <Route
-          path="/vouchers/*"
-          element={
-            <Placeholder
-              title="Vouchers"
-              scope={[
-                'Grid fast entry: pick a model, fill quantities across its colour row (C1 10, C2 5…)',
-                'Tiered pricing applied per line: >10 pcs, >50 pcs, VIP shop tier',
-                'Invoice shows previous balance, this voucher, payment taken, new balance, 14-day due date',
-                'Auto-bundling: one frame deducts one case and one cloth',
-                'Print A4 / A5 / 80mm thermal, or share as text to Viber / Telegram',
-                'Blocked for LOCKED shops unless an admin override is granted',
-              ]}
-            />
-          }
-        />
+        <Route path="/vouchers" element={<VoucherList />} />
+        <Route path="/vouchers/new" element={<VoucherCreate />} />
         <Route
           path="/shops/*"
           element={

@@ -1,0 +1,190 @@
+import { CalendarClock, Percent, Save, Wallet } from 'lucide-react';
+import { DISCOUNT_MODES } from '../../domain/voucher';
+import { PAYMENT_METHODS } from '../../lib/constants';
+import { fmtDate } from '../../lib/dates';
+import { fmtMMK } from '../../lib/format';
+import { Button } from '../ui/Button';
+
+/**
+ * The invoice panel — and the only place a rep sees the shop's whole position.
+ *
+ * The order of rows is the order the printed voucher reads, deliberately:
+ * this voucher, then what was already owed, then what is being paid now, then
+ * the new balance and the date it falls due. A shop owner checks those five
+ * numbers in that sequence, so the screen and the paper must not diverge.
+ */
+export function VoucherTotals({
+  totals,
+  discount,
+  discountMode,
+  onDiscountChange,
+  onDiscountModeChange,
+  payment,
+  onPaymentChange,
+  paymentMethod,
+  onPaymentMethodChange,
+  type,
+  saving,
+  canSave,
+  onSave,
+}) {
+  const isConsignment = type === 'CONSIGNMENT';
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <Row label={`Items (${totals.pieces} pcs)`} value={totals.subtotal} />
+        {totals.tierSavings > 0 ? (
+          <>
+            <Row label="Wholesale tier saving" value={-totals.tierSavings} tone="good" />
+            <p className="text-2xs text-ink-muted">
+              List price would be K {fmtMMK(totals.listSubtotal)}
+            </p>
+          </>
+        ) : null}
+      </div>
+
+      {/* Voucher-level discount, on top of whatever tier the lines earned. */}
+      <div>
+        <label htmlFor="voucher-discount" className="mb-1 block text-xs font-medium text-ink">
+          Extra discount
+        </label>
+        <div className="flex gap-1.5">
+          <div className="flex overflow-hidden rounded-md border border-line-hair">
+            {[
+              [DISCOUNT_MODES.AMOUNT, 'K'],
+              [DISCOUNT_MODES.PERCENT, '%'],
+            ].map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => onDiscountModeChange(mode)}
+                aria-pressed={discountMode === mode}
+                className={`w-9 text-xs font-medium transition ${
+                  discountMode === mode ? 'bg-ink text-plane' : 'text-ink-secondary hover:bg-raised'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <input
+            id="voucher-discount"
+            inputMode="numeric"
+            value={discount}
+            onChange={(e) => onDiscountChange(e.target.value)}
+            placeholder="0"
+            className="h-9 min-w-0 flex-1 rounded-md border border-line-hair bg-surface px-3
+              text-sm tabular-nums text-ink outline-none"
+          />
+        </div>
+        {totals.discountAmount > 0 ? (
+          <p className="mt-1 text-2xs text-ink-secondary">
+            −K {fmtMMK(totals.discountAmount)} off this voucher
+          </p>
+        ) : null}
+      </div>
+
+      <div className="space-y-1.5 border-t border-line-hair pt-3">
+        <Row label="This voucher" value={totals.grandTotal} strong />
+        <Row label="Previous balance" value={totals.previousBalance} />
+      </div>
+
+      {!isConsignment ? (
+        <div>
+          <label htmlFor="voucher-payment" className="mb-1 block text-xs font-medium text-ink">
+            Payment received now
+          </label>
+          <div className="flex gap-1.5">
+            <input
+              id="voucher-payment"
+              inputMode="numeric"
+              value={payment}
+              onChange={(e) => onPaymentChange(e.target.value)}
+              placeholder="0"
+              className="h-9 min-w-0 flex-1 rounded-md border border-line-hair bg-surface px-3
+                text-sm tabular-nums text-ink outline-none"
+            />
+            <select
+              aria-label="Payment method"
+              value={paymentMethod}
+              onChange={(e) => onPaymentMethodChange(e.target.value)}
+              className="h-9 w-28 rounded-md border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {[totals.grandTotal, totals.previousBalance + totals.grandTotal]
+              .filter((v, i, arr) => v > 0 && arr.indexOf(v) === i)
+              .map((value, i) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => onPaymentChange(String(value))}
+                  className="rounded border border-line-hair px-2 py-0.5 text-2xs text-ink-secondary hover:bg-raised hover:text-ink"
+                >
+                  {i === 0 ? 'This voucher' : 'Settle all'} · K {fmtMMK(value, { compact: true })}
+                </button>
+              ))}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="rounded-card border border-line-hair bg-raised p-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-ink">
+            <Wallet size={13} aria-hidden="true" />
+            {isConsignment ? 'Consignment value' : 'New outstanding balance'}
+          </span>
+          <span className="text-xl font-semibold tabular-nums text-ink">
+            K {fmtMMK(isConsignment ? totals.grandTotal : totals.newBalance)}
+          </span>
+        </div>
+
+        <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-ink-secondary">
+          <CalendarClock size={12} aria-hidden="true" />
+          {isConsignment ? (
+            <>Sample stock — no debt and no due date until it converts to a sale.</>
+          ) : (
+            <>
+              Due {fmtDate(totals.dueDate)} — {totals.termDays} days from today
+            </>
+          )}
+        </p>
+      </div>
+
+      <Button
+        variant="primary"
+        size="lg"
+        icon={Save}
+        className="w-full"
+        disabled={!canSave || saving}
+        onClick={onSave}
+      >
+        {saving ? 'Saving…' : isConsignment ? 'Record consignment' : 'Issue voucher'}
+      </Button>
+    </div>
+  );
+}
+
+function Row({ label, value, strong, tone }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 text-sm">
+      <span className={strong ? 'font-medium text-ink' : 'text-ink-secondary'}>{label}</span>
+      <span
+        className={`tabular-nums ${
+          tone === 'good' ? 'text-status-good' : strong ? 'font-semibold text-ink' : 'text-ink'
+        }`}
+      >
+        {value < 0 ? '−' : ''}K {fmtMMK(Math.abs(value))}
+      </span>
+    </div>
+  );
+}
+
+export { Percent };

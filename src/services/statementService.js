@@ -67,6 +67,47 @@ export function buildReminderText(shop, state) {
   ].join('\n');
 }
 
+/**
+ * A voucher as a chat message. Shops confirm orders on Viber long before the
+ * paper reaches them, so this is usually the first copy anyone reads.
+ */
+export function buildVoucherText(voucher, shop) {
+  const lines = [];
+  lines.push(`${COMPANY.name}`);
+  lines.push(`Voucher ${voucher.voucherNo} — ${fmtDate(voucher.issueDate)}`);
+  lines.push('');
+  lines.push(`Shop: ${shop.name}${shop.nameMM ? ` (${shop.nameMM})` : ''}`);
+  lines.push('');
+
+  for (const item of voucher.items) {
+    lines.push(
+      `• ${item.modelNo} ${item.colorCode} ${item.colorName} × ${item.qty} ` +
+        `@ ${fmtMMK(item.unitPrice)} = ${fmtMMK(item.lineTotal)}`,
+    );
+  }
+
+  lines.push('');
+  lines.push(`Subtotal: K ${fmtMMK(voucher.subtotal)}`);
+  if (voucher.discount > 0) lines.push(`Discount: −K ${fmtMMK(voucher.discount)}`);
+  lines.push(`THIS VOUCHER: K ${fmtMMK(voucher.grandTotal)}`);
+
+  if (voucher.type === 'CONSIGNMENT') {
+    lines.push('');
+    lines.push('CONSIGNMENT (sample stock) — not invoiced until sold.');
+  } else {
+    if (voucher.previousBalance > 0) lines.push(`Previous balance: K ${fmtMMK(voucher.previousBalance)}`);
+    if (voucher.paymentAtIssue > 0) lines.push(`Paid now: −K ${fmtMMK(voucher.paymentAtIssue)}`);
+    lines.push(`TOTAL OUTSTANDING: K ${fmtMMK(voucher.newBalance)}`);
+    lines.push('');
+    lines.push(`Payment due: ${fmtDate(voucher.dueDate)} (${voucher.termDays} days)`);
+    lines.push(`ငွေပေးချေရမည့်ရက်: ${fmtDate(voucher.dueDate)}`);
+  }
+
+  lines.push('');
+  lines.push(`${COMPANY.name} — ${COMPANY.phone}`);
+  return lines.join('\n');
+}
+
 const SHARE_TARGETS = {
   viber: (text) => `viber://forward?text=${encodeURIComponent(text)}`,
   telegram: (text) => `https://t.me/share/url?url=${encodeURIComponent(' ')}&text=${encodeURIComponent(text)}`,

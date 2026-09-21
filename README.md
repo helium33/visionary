@@ -13,11 +13,12 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | Module | State |
 |---|---|
 | **Firestore schema** | Complete — `docs/FIRESTORE_SCHEMA.md`, `firestore.rules`, `firestore.indexes.json` |
-| **14-day credit engine** | Complete — `src/domain/`, 22 unit tests |
+| **14-day credit engine** | Complete — `src/domain/`, 51 unit tests across credit and voucher rules |
 | **Credit control dashboard** | Complete — ageing, worklist, FIFO payments, master-password release, statements |
 | **Main dashboard** | Complete — receivables, township/shop rankings, sales vs collections |
+| **Grid fast entry + vouchers** | Complete — matrix entry, tiered pricing, auto-bundling, credit gate, A4/A5/thermal print, chat share |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
-| Vouchers · Inventory · Purchasing · Car stock · Reports · Admin | Routed stubs; each lists its planned scope on screen |
+| Inventory · Purchasing · Car stock · Reports · Admin | Routed stubs; each lists its planned scope on screen |
 
 ## Running it
 
@@ -57,14 +58,19 @@ visionary/
     ├── domain/                  ← PURE BUSINESS RULES. No React, no Firestore.
     │   ├── credit.js              14-day ageing, lock derivation, the voucher gate
     │   ├── allocation.js          FIFO payment + credit-note allocation
-    │   └── credit.test.js         Boundary tests: day 11/12/14/15/22
+    │   ├── pricing.js             Tier resolution — best single tier, never stacked
+    │   ├── voucher.js             Cart pricing, auto-bundling, stock check, invoice maths
+    │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
+    │   └── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
     ├── services/                ← Side effects. Everything that writes.
     │   ├── dataSource.js          One subscription layer over Firestore or demo data
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
+    │   ├── voucherService.js      Voucher write: one batch for stock, debt and journal
     │   ├── statementService.js    Viber/Telegram message + printable A5 statement
     │   └── auditService.js        Append-only audit trail
     ├── hooks/
     │   ├── useCreditData.js       Streams shops + open vouchers → derived portfolio
+    │   ├── useCatalogue.js        Products, with colour variants loaded per model
     │   ├── useSalesAnalytics.js   Township/shop rankings, weekly series
     │   ├── useOnlineStatus.js
     │   └── useToday.js            Ticking "today" so ageing rolls over at midnight
@@ -73,14 +79,17 @@ visionary/
     │   ├── ui/                    Card, Button, Modal, StatTile, StatusPill, Toast
     │   ├── charts/                BarList, AgingBar, TrendChart, shared tooltip
     │   ├── credit/                DueMeter, CollectionTable, and the four dialogs
+    │   ├── voucher/               ModelPicker, GridFastEntry, lines, totals, print
     │   └── layout/                AppShell, SyncBadge
     ├── pages/
     │   ├── Dashboard.jsx
     │   ├── CreditManagement.jsx
+    │   ├── VoucherCreate.jsx      Grid fast entry → invoice → print/share
+    │   ├── VoucherList.jsx
     │   ├── Login.jsx
     │   └── Placeholder.jsx        Honest stubs for the unbuilt modules
     ├── lib/                       firebase.js, constants.js, dates.js, format.js
-    └── data/demoData.js
+    └── data/                      demoData.js (shops, vouchers), demoProducts.js (matrix)
 ```
 
 **The one structural rule:** business rules live in `src/domain/` as pure functions of
@@ -116,6 +125,28 @@ one voucher than have a rep blocked by a dead network.
 **3. The master password is verified on the server.** A client-side check ships the hash in the
 bundle. Rules deny `credit.override` to every client, so only the callable can grant it — which
 makes releasing a shop an online-only action on purpose, not by accident.
+
+## Grid fast entry & pricing
+
+Pick a model, type quantities down its colour row. Enter and the arrow keys move
+between colours and Enter on the last row commits the model, so a laptop order is typed
+without a mouse; the steppers do the same job under a thumb on a phone.
+
+Three rules govern what the grid produces:
+
+**Quantity tiers are earned per model, not per colour line.** Six of C1 plus six of C2 is
+twelve pieces of PB-2026, and both lines get the bulk rate. Pricing each colour separately
+would deny a discount the shop plainly qualifies for, and reps would just split vouchers to
+work around it.
+
+**Tiers never stack.** A VIP shop buying 60 pieces gets whichever single tier is cheaper for
+it — not VIP plus bulk. Stacking is the usual way a wholesale system quietly sells below
+cost.
+
+**Bundles move stock but never price.** One frame ships with one case and one cloth at no
+charge, so they stay off the invoice total and still leave the warehouse — otherwise the case
+count drifts from reality within a month. A missing cloth warns; it does not block a
+K 2,000,000 frame order.
 
 Payments allocate **oldest voucher first**, because the oldest is the one about to trip the
 lock. The allocation is computed by the same pure function that the write uses, so the preview

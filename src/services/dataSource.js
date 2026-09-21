@@ -1,6 +1,7 @@
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { COL, db, isDemoMode } from '../lib/firebase';
 import { demoPayments, demoShops, demoUsers, demoVouchers } from '../data/demoData';
+import { demoProducts, demoStockLocations } from '../data/demoProducts';
 
 /**
  * One subscription layer for both sources.
@@ -100,4 +101,47 @@ export function subscribePayments(cb, { since }, onError) {
 export function subscribeUsers(cb, onError) {
   if (isDemoMode) return demoSubscribe(demoUsers, cb);
   return liveSubscribe(collection(db, COL.users), cb, onError);
+}
+
+/**
+ * Product documents only — the colour variants live in a subcollection and are
+ * fetched per model by `subscribeVariants`, so opening the catalogue does not
+ * pull every colour of every model into the cache.
+ */
+export function subscribeProducts(cb, { category } = {}, onError) {
+  if (isDemoMode) {
+    const rows = demoProducts
+      .filter((p) => (category ? p.category === category : true))
+      .map(({ variants, ...product }) => product);
+    return demoSubscribe(rows, cb);
+  }
+  const clauses = [where('active', '==', true)];
+  if (category) clauses.push(where('category', '==', category));
+  return liveSubscribe(
+    query(collection(db, COL.products), ...clauses, orderBy('modelNo', 'asc')),
+    cb,
+    onError,
+  );
+}
+
+/** The colour row for one model — what Grid Fast Entry renders. */
+export function subscribeVariants(productId, cb, onError) {
+  if (isDemoMode) {
+    const product = demoProducts.find((p) => p.id === productId);
+    return demoSubscribe(product?.variants ?? [], cb);
+  }
+  return liveSubscribe(
+    query(collection(db, COL.products, productId, COL.variants), orderBy('colorCode', 'asc')),
+    cb,
+    onError,
+  );
+}
+
+export function subscribeStockLocations(cb, onError) {
+  if (isDemoMode) return demoSubscribe(demoStockLocations, cb);
+  return liveSubscribe(
+    query(collection(db, COL.stockLocations), where('active', '==', true)),
+    cb,
+    onError,
+  );
 }
