@@ -1,0 +1,173 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens. Light values live on bare :root; the dark set is declared
+ * twice — once under prefers-color-scheme for the OS setting, once under
+ * [data-theme="dark"] so an explicit toggle wins in both directions.
+ * Chart colours come from the validated categorical/status palette; no colour
+ * is defined only inside a media query.
+ */
+:root {
+  color-scheme: light;
+
+  --plane: #f9f9f7;
+  --surface-1: #fcfcfb;
+  --surface-2: #f2f1ed;
+
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border-hair: rgba(11, 11, 11, 0.1);
+
+  /* Categorical slots, fixed order — never cycled. */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+
+  /* Sequential blue ramp (magnitude encoding). */
+  --seq-250: #86b6ef;
+  --seq-350: #5598e7;
+  --seq-450: #2a78d6;
+  --seq-550: #1c5cab;
+
+  /* Status — reserved, never reused as a series colour. */
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-serious: #ec835a;
+  --status-critical: #d03b3b;
+
+  --wash-good: rgba(12, 163, 12, 0.1);
+  --wash-warning: rgba(250, 178, 25, 0.16);
+  --wash-serious: rgba(236, 131, 90, 0.16);
+  --wash-critical: rgba(208, 59, 59, 0.12);
+  --wash-accent: rgba(42, 120, 214, 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --plane: #0d0d0d;
+    --surface-1: #1a1a19;
+    --surface-2: #232321;
+
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border-hair: rgba(255, 255, 255, 0.1);
+
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+
+    --seq-250: #184f95;
+    --seq-350: #256abf;
+    --seq-450: #3987e5;
+    --seq-550: #6da7ec;
+
+    --wash-good: rgba(12, 163, 12, 0.18);
+    --wash-warning: rgba(250, 178, 25, 0.18);
+    --wash-serious: rgba(236, 131, 90, 0.18);
+    --wash-critical: rgba(208, 59, 59, 0.2);
+    --wash-accent: rgba(57, 135, 229, 0.16);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --plane: #0d0d0d;
+  --surface-1: #1a1a19;
+  --surface-2: #232321;
+
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --border-hair: rgba(255, 255, 255, 0.1);
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+
+  --seq-250: #184f95;
+  --seq-350: #256abf;
+  --seq-450: #3987e5;
+  --seq-550: #6da7ec;
+
+  --wash-good: rgba(12, 163, 12, 0.18);
+  --wash-warning: rgba(250, 178, 25, 0.18);
+  --wash-serious: rgba(236, 131, 90, 0.18);
+  --wash-critical: rgba(208, 59, 59, 0.2);
+  --wash-accent: rgba(57, 135, 229, 0.16);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--plane);
+    color: var(--text-primary);
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 14px;
+  }
+
+  /* Myanmar script fallback so shop names render on any device. */
+  .mm {
+    font-family: 'Padauk', 'Myanmar Text', 'Noto Sans Myanmar', system-ui, sans-serif;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--series-1);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-card border border-line-hair bg-surface;
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* A5 / thermal statement printing: only the print region survives. */
+@media print {
+  body {
+    background: #ffffff;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-region {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: #000000;
+  }
+}

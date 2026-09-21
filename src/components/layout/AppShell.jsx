@@ -1,0 +1,150 @@
+import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
+import {
+  BarChart3,
+  Boxes,
+  CreditCard,
+  Glasses,
+  LayoutDashboard,
+  Menu,
+  Package,
+  Receipt,
+  Store,
+  Truck,
+  Users,
+  X,
+} from 'lucide-react';
+import { ROLE_LABELS } from '../../lib/constants';
+import { useAuth } from '../../context/AuthContext';
+import { SyncBadge } from './SyncBadge';
+
+const NAV = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, permission: null },
+  { to: '/credit', label: 'Credit control', icon: CreditCard, permission: null },
+  { to: '/vouchers', label: 'Vouchers', icon: Receipt, permission: 'voucher:create' },
+  { to: '/shops', label: 'Shops & townships', icon: Store, permission: null },
+  { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory:read' },
+  { to: '/purchasing', label: 'Purchasing & cost', icon: Package, permission: 'po:read' },
+  { to: '/logistics', label: 'Car stock', icon: Truck, permission: 'stock:car' },
+  { to: '/reports', label: 'Reports', icon: BarChart3, permission: 'profit:read' },
+  { to: '/admin', label: 'Users & audit', icon: Users, permission: '*' },
+];
+
+export function AppShell({ sync, children }) {
+  const { user, can, isDemoMode, demoUsers, switchDemoUser } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  // `permission: null` is open to every signed-in role; '*' is admin-only.
+  const items = NAV.filter((item) => {
+    if (!item.permission) return true;
+    if (item.permission === '*') return user?.role === 'ADMIN';
+    return can(item.permission);
+  });
+
+  return (
+    <div className="min-h-screen bg-plane">
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-60 -translate-x-full border-r border-line-hair
+          bg-surface transition-transform lg:translate-x-0 ${open ? 'translate-x-0' : ''}`}
+      >
+        <div className="flex h-14 items-center gap-2 border-b border-line-hair px-4">
+          <Glasses size={18} className="text-series-1" aria-hidden="true" />
+          <span className="text-sm font-semibold tracking-tight text-ink">Visionary</span>
+          <button
+            type="button"
+            className="ml-auto rounded p-1 text-ink-muted hover:bg-raised lg:hidden"
+            onClick={() => setOpen(false)}
+            aria-label="Close menu"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <nav className="space-y-0.5 p-2">
+          {items.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              onClick={() => setOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition ${
+                  isActive
+                    ? 'bg-raised font-medium text-ink'
+                    : 'text-ink-secondary hover:bg-raised hover:text-ink'
+                }`
+              }
+            >
+              <item.icon size={16} aria-hidden="true" />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        <div className="absolute inset-x-0 bottom-0 border-t border-line-hair p-3">
+          <p className="text-xs font-medium text-ink">{user?.name}</p>
+          <p className="text-2xs text-ink-secondary">{ROLE_LABELS[user?.role] ?? user?.role}</p>
+          {isDemoMode ? (
+            <select
+              aria-label="Switch demo role"
+              className="mt-2 w-full rounded border border-line-hair bg-surface px-2 py-1 text-2xs text-ink-secondary"
+              value={user?.id}
+              onChange={(e) => switchDemoUser(e.target.value)}
+            >
+              {demoUsers.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {ROLE_LABELS[u.role]} — {u.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+        </div>
+      </aside>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          onClick={() => setOpen(false)}
+          role="presentation"
+        />
+      ) : null}
+
+      {/* Main column */}
+      <div className="lg:pl-60">
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b border-line-hair bg-surface px-4">
+          <button
+            type="button"
+            className="rounded p-1.5 text-ink-secondary hover:bg-raised lg:hidden"
+            onClick={() => setOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu size={18} />
+          </button>
+          <div className="ml-auto flex items-center gap-2">
+            {isDemoMode ? (
+              <span className="hidden rounded bg-wash-warning px-2 py-1 text-2xs font-medium text-ink sm:inline">
+                Demo data
+              </span>
+            ) : null}
+            <SyncBadge sync={sync} />
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-[1400px] px-4 py-5">{children}</main>
+      </div>
+    </div>
+  );
+}
+
+export function PageHeader({ title, subtitle, actions }) {
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight text-ink">{title}</h1>
+        {subtitle ? <p className="mt-0.5 text-sm text-ink-secondary">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+    </div>
+  );
+}

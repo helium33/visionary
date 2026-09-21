@@ -1,0 +1,170 @@
+rules_version = '2';
+
+// Visionary — wholesale eyewear ERP.
+// Role comes from a custom auth claim (mirrored from users/{uid}.role by a
+// Cloud Function), never from a document read: reading the role on every rule
+// evaluation would cost a document read per operation and can be stale in the
+// offline cache.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return request.auth.token.role;
+    }
+
+    function isAdmin()      { return signedIn() && role() == 'ADMIN'; }
+    function isAccountant() { return signedIn() && role() == 'ACCOUNTANT'; }
+    function isSales()      { return signedIn() && role() == 'SALES'; }
+    function isWarehouse()  { return signedIn() && role() == 'WAREHOUSE'; }
+
+    function shopDoc(shopId) {
+      return get(/databases/$(database)/documents/shops/$(shopId)).data;
+    }
+
+    // The cached lock flag plus a live override. This is the cheap layer of
+    // the three described in docs/FIRESTORE_SCHEMA.md §2.3 — the authoritative
+    // check is onVoucherWrite, which sees the true clock.
+    function shopAcceptsCredit(shopId) {
+      let shop = shopDoc(shopId);
+      return shop.credit.lockedUntilPaid != true
+        || (shop.credit.override != null
+            && shop.credit.override.expiresAt > request.time);
+    }
+
+    function unchanged(field) {
+      return !(field in request.resource.data)
+        || request.resource.data[field] == resource.data[field];
+    }
+
+    // ---------------------------------------------------------------- users
+    match /users/{uid} {
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow write: if isAdmin();
+    }
+
+    // ---------------------------------------------------------------- shops
+    match /shops/{shopId} {
+      allow read: if isAdmin() || isAccountant() || isWarehouse()
+        || (isSales() && resource.data.salesRepId == request.auth.uid);
+
+      allow create: if isAdmin() || isSales();
+
+      // credit.override is written by the grantCreditOverride callable only.
+      // A client that could set it could unlock itself, which would make the
+      // master password decorative.
+      allow update: if (isAdmin() || isAccountant()
+                        || (isSales() && resource.data.salesRepId == request.auth.uid))
+        && unchanged('credit.override')
+        && !(request.resource.data.credit.diff(resource.data.credit)
+              .affectedKeys().hasAny(['override']));
+
+      allow delete: if false; // deactivate instead — history must survive
+
+      match /ledger/{entryId} {
+        allow read: if isAdmin() || isAccountant()
+          || (isSales() && shopDoc(shopId).salesRepId == request.auth.uid);
+        allow create: if isAdmin() || isAccountant() || isSales();
+        allow update, delete: if false; // append-only
+      }
+    }
+
+    // ------------------------------------------------------------- vouchers
+    match /vouchers/{voucherId} {
+      allow read: if isAdmin() || isAccountant() || isWarehouse()
+        || (isSales() && resource.data.salesRepId == request.auth.uid);
+
+      // THE CREDIT GATE. Consignment moves sample stock and carries no debt,
+      // so it is never blocked by ageing.
+      allow create: if (isAdmin() || isSales())
+        && request.resource.data.shopId is string
+        && (request.resource.data.type == 'CONSIGNMENT'
+            || shopAcceptsCredit(request.resource.data.shopId));
+
+      // A rep may correct their own voucher on the day it was issued; after
+      // that, corrections go through the accountant so the debt position is
+      // not rewritten behind the office's back.
+      allow update: if isAdmin() || isAccountant()
+        || (isSales()
+            && resource.data.salesRepId == request.auth.uid
+            && resource.data.status in ['DRAFT', 'ISSUED']
+            && resource.data.issueDate > request.time - duration.value(1, 'd'));
+
+      allow delete: if false; // void, never delete
+    }
+
+    // ------------------------------------------------------------- payments
+    match /payments/{paymentId} {
+      allow read: if isAdmin() || isAccountant()
+        || (isSales() && resource.data.receivedBy == request.auth.uid);
+      allow create: if isAdmin() || isAccountant() || isSales();
+      allow update, delete: if false; // reverse with a credit note instead
+    }
+
+    match /creditNotes/{noteId} {
+      allow read: if isAdmin() || isAccountant() || isSales();
+      allow create: if isAdmin() || isAccountant();
+      allow update, delete: if false;
+    }
+
+    // ------------------------------------------------------------ inventory
+    match /products/{productId} {
+      allow read: if signedIn();
+      allow write: if isAdmin() || isWarehouse();
+
+      match /variants/{colorCode} {
+        allow read: if signedIn();
+        // Sales reps decrement stock as a side effect of issuing a voucher,
+        // so they need write access to the stock map — but nothing else.
+        allow create, delete: if isAdmin() || isWarehouse();
+        allow update: if isAdmin() || isWarehouse()
+          || (isSales() && request.resource.data.diff(resource.data)
+                .affectedKeys().hasOnly(['stock', 'reserved']));
+      }
+    }
+
+    match /inventoryMoves/{moveId} {
+      allow read: if signedIn();
+      allow create: if isAdmin() || isWarehouse() || isSales();
+      allow update, delete: if false; // the stock journal is immutable
+    }
+
+    match /stockLocations/{locationId} {
+      allow read: if signedIn();
+      allow write: if isAdmin() || isWarehouse();
+    }
+
+    // ------------------------------------------------- purchasing & finance
+    match /purchaseOrders/{poId} {
+      allow read: if isAdmin() || isAccountant() || isWarehouse();
+      allow write: if isAdmin() || isWarehouse();
+    }
+
+    match /expenses/{expenseId} {
+      allow read, write: if isAdmin() || isAccountant();
+    }
+
+    match /dailyRollups/{day} {
+      allow read: if isAdmin() || isAccountant();
+      allow write: if false; // written by the nightly Cloud Function only
+    }
+
+    // ------------------------------------------------------------ audit log
+    match /auditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create: if signedIn();
+      allow update, delete: if false; // admins included — this is the point
+    }
+
+    // ------------------------------------------------------------- settings
+    match /settings/{docId} {
+      // masterPasswordHash lives here; the callable reads it with admin
+      // credentials, so no client ever needs read access to this document.
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
