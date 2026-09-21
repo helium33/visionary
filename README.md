@@ -20,8 +20,9 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Inventory** | Complete — stock matrix, EAN-13/QR label printing, dead-stock and low-stock reports |
 | **Purchasing & landed cost** | Complete — PO tracking, charge apportionment, receiving with cost write-back, expenses |
 | **Reports** | Complete — net profit bridge, model profitability, rep commissions |
+| **Car stock** | Complete — load a bag, reconcile stock, cash and debt on return |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
-| Car stock · Users & audit | Routed stubs; each lists its planned scope on screen |
+| Users & audit | Routed stub; lists its planned scope on screen |
 
 ## Running it
 
@@ -69,13 +70,15 @@ visionary/
     │   ├── purchasing.js          PO arrival state, expense roll-ups
     │   ├── profit.js              P&L, the revenue→net bridge, model profitability
     │   ├── commission.js          Rep volume plus the on-time collection bonus
+    │   ├── carStock.js            Trip reconciliation: stock, cash and debt
     │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
     │   ├── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
     │   ├── barcode.test.js        Symbol encoding against the GS1 worked example
     │   ├── inventory.test.js      Dead-stock bands, valuation, label runs
     │   ├── landedCost.test.js     Apportionment balance, FX, short deliveries
     │   ├── purchasing.test.js     Late shipments, expense windows
-    │   └── profit.test.js         Frozen COGS, the bridge, commission split
+    │   ├── profit.test.js         Frozen COGS, the bridge, commission split
+    │   └── carStock.test.js       Bag arithmetic, cash vs phone, settlement
     ├── services/                ← Side effects. Everything that writes.
     │   ├── dataSource.js          One subscription layer over Firestore or demo data
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
@@ -97,6 +100,7 @@ visionary/
     │   ├── inventory/             StockMatrix, barcode/QR SVG, label sheet, alert tables
     │   ├── purchasing/            PoTable, landed-cost breakdown, receiving, expenses
     │   ├── reports/               Commission table with the on-time meter
+    │   ├── carstock/              Trip reconciliation panel
     │   └── layout/                AppShell, SyncBadge
     ├── pages/
     │   ├── Dashboard.jsx
@@ -106,6 +110,7 @@ visionary/
     │   ├── Inventory.jsx          Stock matrix, labels, dead stock
     │   ├── Purchasing.jsx         Landed cost, receiving, general expenses
     │   ├── Reports.jsx            Net profit bridge, model margins, commissions
+    │   ├── CarStock.jsx           Load a bag, count it back in
     │   ├── Login.jsx
     │   └── Placeholder.jsx        Honest stubs for the unbuilt modules
     ├── lib/                       firebase.js, constants.js, dates.js, format.js
@@ -232,6 +237,30 @@ The profit bridge is drawn as a horizontal waterfall: revenue, less cost of good
 then each expense category, landing on net. Its scale includes zero and any negative running
 total, so a loss-making period draws correctly instead of collapsing — a chart that cannot show a
 loss is a chart that hides one.
+
+## Car stock
+
+A rep leaves with a bag of frames and comes back with some frames, some cash and some new debt.
+All three have to tie out together or the business does not know what it owns.
+
+**The expected figure is built from the trip's own movements** — took, sold, should have — rather
+than read off the live stock field. "You took 12, sold 8, so you should have 4" is an argument a
+rep can check standing at the counter; "the system says 4" is not, and a reconciliation nobody
+trusts gets signed without counting. It also works offline, where the live figure may be
+mid-sync. `sold` comes from the vouchers whose `locationId` is that bag, which is why vouchers
+record where they were written.
+
+**Only physical cash is expected back.** A shop that paid by KBZPay has already moved the money;
+counting it as cash the rep owes would show a shortfall on every single trip. The panel shows
+both figures side by side and only the cash half has to be handed over.
+
+**New credit is not a variance.** Selling on 14-day terms is the job — putting it in the same
+column as missing stock would train everyone to ignore the column. It is reported as a result and
+handed to credit control, where the clock is already running.
+
+Settling writes the difference as an explicit signed adjustment into the stock journal. A
+shortage is a loss somebody has to account for, so it leaves a record rather than being absorbed
+into a corrected stock figure.
 
 Payments allocate **oldest voucher first**, because the oldest is the one about to trip the
 lock. The allocation is computed by the same pure function that the write uses, so the preview

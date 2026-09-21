@@ -359,6 +359,37 @@ only covers `COLLECTION` scope.
 Every stock figure in `variants.stock` is reconstructible by replaying this journal — which is
 what the reconciliation job does when a rep's car stock does not tie out.
 
+### `carTrips/{tripId}` — a rep's day out
+
+```js
+{
+  tripNo: 'CAR-260921-ZM',
+  repId, repName,
+  locationId: 'LOC-CAR-ZM',       // the bag this trip moves stock through
+  status: 'OPEN' | 'RECONCILING' | 'CLOSED',
+  route: ['Latha', 'Pabedan'],
+  openedAt, closedAt,
+
+  openingLines: [{ productId, modelNo, colorCode, qty }],  // leftover from yesterday
+  loadLines:    [{ productId, modelNo, colorCode, qty }],  // appended on each load
+  countedLines: [{ productId, modelNo, colorCode, qty }],  // the physical count
+
+  cash: { expected, counted, variance, note },
+  summary: { pieces, shortPieces, shortValue, cashVariance, creditIssued },
+  stockReturned: true,
+  reconciledBy
+}
+```
+
+**Why the trip stores its own movements** instead of reading the live stock field: the
+reconciliation has to explain itself. "You took 12, sold 8, so you should have 4" is an argument a
+rep can check standing at the counter; "the system says 4" is not, and a reconciliation nobody
+trusts gets signed without counting. It also works offline, where the live figure may be
+mid-sync.
+
+`sold` is never stored — it is derived from the vouchers whose `locationId` is this bag and whose
+`issueDate` falls inside the trip. That is why `vouchers.locationId` exists.
+
 ### `stockLocations/{locationId}`
 
 ```js
@@ -462,6 +493,7 @@ screens stay on live vouchers, because a rolled-up figure cannot be aged.
 | Landed cost | `purchaseOrders.charges` → `products.costing.actualCost` |
 | Dead stock | `products.lastSoldAt` vs today, derived at read time — bands at 60 / 90 / 180 days |
 | Car stock | `stockLocations` type `CAR` + `variants.stock['LOC-CAR-*']` |
+| Trip reconciliation | `carTrips` (took/counted) + `vouchers.locationId` (sold) + `payments.method` (cash vs phone) |
 | Offline | `persistentLocalCache`, device-generated IDs, batched writes, derived status |
 | Audit log | `auditLogs`, create-only |
 

@@ -83,6 +83,12 @@ const VOUCHER_SEED = [
   ['SH-013', 21, 1_900_000, 1_900_000],
   ['SH-014', 18, 470_000, 0],
   ['SH-003', 34, 350_000, 0],
+  // Sold out of the car — these are what the open and closed trips reconcile.
+  ['SH-001', 0, 680_000, 680_000],
+  ['SH-009', 0, 540_000, 0],
+  ['SH-003', 0, 310_000, 100_000],
+  ['SH-004', 1, 890_000, 890_000],
+  ['SH-008', 1, 460_000, 0],
   ['SH-005', 2, 890_000, 0, 'CONSIGNMENT'],
   ['SH-013', 5, 1_250_000, 0, 'CONSIGNMENT'],
   ['SH-001', 26, 2_050_000, 2_050_000],
@@ -131,6 +137,14 @@ export const demoVouchers = VOUCHER_SEED.map(([shopId, daysAgo, total, paid, typ
   const issueDate = subDays(now, daysAgo);
   const shop = demoShops.find((s) => s.id === shopId);
   const balanceDue = type === 'CONSIGNMENT' ? 0 : total - paid;
+  // Recent vouchers from a rep who is out with a bag were written from the car,
+  // not the warehouse — that is what ties them to a trip.
+  const locationId =
+    daysAgo === 0 && shop.salesRepId === 'u-sales-1'
+      ? 'LOC-CAR-ZM'
+      : daysAgo <= 1 && shop.salesRepId === 'u-sales-2'
+        ? 'LOC-CAR-WP'
+        : 'LOC-MAIN';
   return {
     id: `V-${String(i + 1).padStart(4, '0')}`,
     voucherNo: `VN-${String(2600 + i).padStart(5, '0')}`,
@@ -150,6 +164,8 @@ export const demoVouchers = VOUCHER_SEED.map(([shopId, daysAgo, total, paid, typ
     issueDate: iso(issueDate),
     dueDate: iso(addDays(issueDate, 14)),
     termDays: 14,
+    daysAgo,
+    locationId,
     items: demoItems(total, i),
     subtotal: total,
     discount: 0,
@@ -167,13 +183,18 @@ const COLLECTION_DAYS = [3, 6, 11, 18, 9, 22, 5, 13];
 export const demoPayments = demoVouchers
   .filter((v) => v.paidAmount > 0)
   .map((v, i) => {
-    const daysToPay = COLLECTION_DAYS[i % COLLECTION_DAYS.length];
+    // Money taken at the counter on a car trip is collected the same day —
+    // anything later would fall outside the trip and short the reconciliation.
+    const sameDay = v.daysAgo <= 1 && v.locationId !== 'LOC-MAIN';
+    const daysToPay = sameDay ? 0 : COLLECTION_DAYS[i % COLLECTION_DAYS.length];
     return {
       id: `PM-${String(i + 1).padStart(4, '0')}`,
       receiptNo: `RC-${String(4100 + i).padStart(5, '0')}`,
       shopId: v.shopId,
       amount: v.paidAmount,
-      method: ['CASH', 'KBZ_PAY', 'WAVE_PAY', 'BANK_TRANSFER'][i % 4],
+      // Deterministic on a trip so the cash/digital split is visible: only the
+      // cash half has to be handed over at the end of the day.
+      method: sameDay ? (i % 2 === 0 ? 'CASH' : 'KBZ_PAY') : ['CASH', 'KBZ_PAY', 'WAVE_PAY', 'BANK_TRANSFER'][i % 4],
       receivedAt: iso(addDays(new Date(v.issueDate), daysToPay)),
       receivedBy: v.salesRepId,
       allocations: [{ voucherId: v.id, voucherNo: v.voucherNo, amount: v.paidAmount, daysOverdue: Math.max(0, daysToPay - 14) }],

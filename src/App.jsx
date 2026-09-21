@@ -3,6 +3,7 @@ import { AppShell } from './components/layout/AppShell';
 import { useAuth } from './context/AuthContext';
 import { useCreditData } from './hooks/useCreditData';
 import CreditManagement from './pages/CreditManagement';
+import CarStock from './pages/CarStock';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Login from './pages/Login';
@@ -54,19 +55,7 @@ function AuthedApp() {
         />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/purchasing" element={<Purchasing />} />
-        <Route
-          path="/logistics/*"
-          element={
-            <Placeholder
-              title="Car / bag stock"
-              scope={[
-                'Transfer stock from the main warehouse to a rep’s car stock location',
-                'End-of-day reconciliation: stock out vs vouchers vs cash vs new debt',
-              ]}
-            />
-          }
-        />
-        <Route path="/reports" element={<Reports />} />
+        <Route path="/logistics" element={<CarStock />} />
         <Route
           path="/admin/*"
           element={

@@ -10,6 +10,7 @@ import { COL, db, isDemoMode } from '../lib/firebase';
 import { demoPayments, demoShops, demoUsers, demoVouchers } from '../data/demoData';
 import { demoProducts, demoStockLocations } from '../data/demoProducts';
 import { demoExpenses, demoPurchaseOrders, demoSuppliers } from '../data/demoPurchases';
+import { demoCarTrips } from '../data/demoCarTrips';
 
 /**
  * One subscription layer for both sources.
@@ -220,4 +221,17 @@ export function subscribeExpenses(cb, { since } = {}, onError) {
 export function subscribeSuppliers(cb, onError) {
   if (isDemoMode) return demoSubscribe(demoSuppliers, cb);
   return liveSubscribe(collection(db, 'suppliers'), cb, onError);
+}
+
+export function subscribeCarTrips(cb, { repId } = {}, onError) {
+  if (isDemoMode) {
+    const rows = repId ? demoCarTrips.filter((trip) => trip.repId === repId) : demoCarTrips;
+    return demoSubscribe(rows, cb);
+  }
+  const clauses = repId ? [where('repId', '==', repId)] : [];
+  return liveSubscribe(
+    query(collection(db, 'carTrips'), ...clauses, orderBy('openedAt', 'desc')),
+    cb,
+    onError,
+  );
 }

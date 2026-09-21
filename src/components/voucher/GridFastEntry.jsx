@@ -24,7 +24,18 @@ import { Button } from '../ui/Button';
  *     the grid shows the rate the shop is about to get and how many more
  *     pieces would earn the next one — the rep can upsell mid-sentence.
  */
-export function GridFastEntry({ product, shopTier = 'STANDARD', locationId, onAdd, existingQty = 0 }) {
+export function GridFastEntry({
+  product,
+  shopTier = 'STANDARD',
+  locationId,
+  onAdd,
+  existingQty = 0,
+  // TRANSFER drops everything about price: loading a rep's bag moves stock
+  // between our own locations, so a selling price on the row is noise.
+  purpose = 'SELL',
+  addLabel,
+}) {
+  const isTransfer = purpose === 'TRANSFER';
   const [quantities, setQuantities] = useState({});
   const inputRefs = useRef([]);
 
@@ -129,13 +140,21 @@ export function GridFastEntry({ product, shopTier = 'STANDARD', locationId, onAd
               .join(' · ')}
           </p>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-medium tabular-nums text-ink">K {fmtMMK(pricing.unitPrice)}</p>
+        {isTransfer ? (
           <p className="text-2xs text-ink-secondary">
-            {pricing.tierLabel}
-            {pricing.discountPct > 0 ? ` · −${pricing.discountPct}%` : ''}
+            {product.totalStock} in stock across all colours
           </p>
-        </div>
+        ) : (
+          <div className="text-right">
+            <p className="text-sm font-medium tabular-nums text-ink">
+              K {fmtMMK(pricing.unitPrice)}
+            </p>
+            <p className="text-2xs text-ink-secondary">
+              {pricing.tierLabel}
+              {pricing.discountPct > 0 ? ` · −${pricing.discountPct}%` : ''}
+            </p>
+          </div>
+        )}
       </div>
 
       <table className="w-full table-fixed text-sm">
@@ -144,7 +163,9 @@ export function GridFastEntry({ product, shopTier = 'STANDARD', locationId, onAd
             <th className="px-2 py-2 font-medium sm:px-4">Colour</th>
             <th className="w-14 px-1 py-2 text-right font-medium sm:w-20 sm:px-3">Stock</th>
             <th className="w-[7.5rem] px-1 py-2 text-center font-medium sm:w-36 sm:px-3">Qty</th>
-            <th className="w-20 px-2 py-2 text-right font-medium sm:w-28 sm:px-4">Total</th>
+            <th className="w-20 px-2 py-2 text-right font-medium sm:w-28 sm:px-4">
+              {isTransfer ? 'Left' : 'Total'}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -246,7 +267,7 @@ export function GridFastEntry({ product, shopTier = 'STANDARD', locationId, onAd
                 <td className="px-2 py-2 text-right sm:px-4">
                   {qty > 0 ? (
                     <span className="font-medium tabular-nums text-ink">
-                      {fmtMMK(qty * pricing.unitPrice)}
+                      {isTransfer ? available - qty : fmtMMK(qty * pricing.unitPrice)}
                     </span>
                   ) : (
                     <span className="text-ink-muted">—</span>
@@ -267,9 +288,14 @@ export function GridFastEntry({ product, shopTier = 'STANDARD', locationId, onAd
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-hair px-4 py-3">
         <div className="text-xs text-ink-secondary">
           <p className="text-sm font-medium text-ink">
-            {totalQty} pcs · K {fmtMMK(lineTotal)}
+            {totalQty} pcs{isTransfer ? '' : ` · K ${fmtMMK(lineTotal)}`}
           </p>
-          {nextTier && totalQty > 0 ? (
+          {isTransfer ? (
+            <p className="flex items-center gap-1">
+              <CornerDownLeft size={11} aria-hidden="true" />
+              Enter moves down the colours · Enter on the last row loads the model
+            </p>
+          ) : nextTier && totalQty > 0 ? (
             <p>
               {nextTier.minQty - effectiveQty} more pcs of this model →{' '}
               {PRICE_TIERS[nextTier.key]?.label} at K{' '}
@@ -284,7 +310,7 @@ export function GridFastEntry({ product, shopTier = 'STANDARD', locationId, onAd
         </div>
 
         <Button variant="primary" icon={Plus} onClick={commit} disabled={totalQty === 0}>
-          Add {totalQty > 0 ? `${totalQty} pcs` : 'to voucher'}
+          {addLabel ?? 'Add'} {totalQty > 0 ? `${totalQty} pcs` : isTransfer ? '' : 'to voucher'}
         </Button>
       </div>
     </div>
