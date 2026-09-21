@@ -8,3 +8,4 @@ dev-dist
 .DS_Store
 .firebase
 coverage
+dist-preview
