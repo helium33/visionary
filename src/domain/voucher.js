@@ -38,9 +38,24 @@ export function priceCart(lines = [], { products, shopTier = 'STANDARD' } = {}) 
         tierLabel: pricing.tierLabel,
         tierReason: pricing.reason,
         discountPct: pricing.discountPct,
-        unitCost: product?.costing?.actualCost ?? 0,
+        unitCost: Number(product?.costing?.actualCost) || 0,
+        bundleUnitCost: bundleUnitCost(product, catalogue),
       };
     });
+}
+
+/**
+ * The landed cost of the case and cloth that ship free with one frame. They
+ * cost nothing to the shop and something to us, so they belong in cost of
+ * goods sold even though they never appear on the invoice.
+ */
+export function bundleUnitCost(product, products) {
+  const catalogue = indexProducts(products);
+  if (!product?.bundle) return 0;
+  return ['caseProductId', 'clothProductId'].reduce((sum, key) => {
+    const bundled = catalogue.get(product.bundle[key]);
+    return sum + (Number(bundled?.costing?.actualCost) || 0);
+  }, 0);
 }
 
 /**
@@ -154,7 +169,9 @@ export function summariseVoucher({
   const newBalance = round0(previousBalance + grandTotal - paymentAtIssue);
 
   const pieces = lines.reduce((sum, l) => sum + l.qty, 0);
-  const cost = round0(lines.reduce((sum, l) => sum + l.unitCost * l.qty, 0));
+  const cost = round0(
+    lines.reduce((sum, l) => sum + (l.unitCost + (l.bundleUnitCost ?? 0)) * l.qty, 0),
+  );
 
   return {
     pieces,
@@ -220,6 +237,10 @@ export function buildVoucherDoc({
       lineTotal: line.lineTotal,
       tierApplied: line.tierApplied,
       discountPct: line.discountPct,
+      // Cost is STORED on the voucher, not looked up later: the next shipment
+      // lands at a different price, and history must not move with it.
+      unitCost: line.unitCost,
+      bundleUnitCost: line.bundleUnitCost ?? 0,
       bundled: bundleFor(line, bundles),
     })),
 

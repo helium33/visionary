@@ -8,6 +8,7 @@ import Inventory from './pages/Inventory';
 import Login from './pages/Login';
 import Placeholder from './pages/Placeholder';
 import Purchasing from './pages/Purchasing';
+import Reports from './pages/Reports';
 import VoucherCreate from './pages/VoucherCreate';
 import VoucherList from './pages/VoucherList';
 
@@ -65,19 +66,7 @@ function AuthedApp() {
             />
           }
         />
-        <Route
-          path="/reports/*"
-          element={
-            <Placeholder
-              title="Reports"
-              scope={[
-                'Net profit dashboard and expense tracking',
-                'Rep commission: sales volume plus a bonus for collection inside 14 days',
-                'Township and model performance exports',
-              ]}
-            />
-          }
-        />
+        <Route path="/reports" element={<Reports />} />
         <Route
           path="/admin/*"
           element={

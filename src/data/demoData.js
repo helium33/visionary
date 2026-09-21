@@ -1,4 +1,5 @@
 import { addDays, subDays } from 'date-fns';
+import { demoProducts } from './demoProducts';
 
 /**
  * Seeded demo dataset — mirrors the Firestore document shapes exactly, so the
@@ -96,19 +97,31 @@ const VOUCHER_SEED = [
 const MODELS = ['PB-2026', 'VS-118', 'TR-9045', 'AC-3320', 'KD-771', 'MT-505'];
 const COLORS = ['C1 Black', 'C2 Tortoise', 'C3 Gunmetal', 'C4 Rose Gold', 'C5 Navy'];
 
+/** Landed cost of the case and cloth that ship free with every frame. */
+const BUNDLE_COST = ['P-CASE-STD', 'P-CLOTH-STD'].reduce(
+  (sum, id) => sum + (demoProducts.find((p) => p.id === id)?.costing.actualCost ?? 0),
+  0,
+);
+
 function demoItems(total, seed) {
   const lineCount = 2 + (seed % 3);
   const per = Math.round(total / lineCount / 1000) * 1000;
   return Array.from({ length: lineCount }, (_, i) => {
     const qty = 6 + ((seed + i * 3) % 18);
+    const modelNo = MODELS[(seed + i) % MODELS.length];
+    const product = demoProducts.find((p) => p.id === `P-${modelNo}`);
     return {
-      productId: `P-${MODELS[(seed + i) % MODELS.length]}`,
-      modelNo: MODELS[(seed + i) % MODELS.length],
+      productId: `P-${modelNo}`,
+      modelNo,
       colorCode: COLORS[(seed + i * 2) % COLORS.length].split(' ')[0],
       colorName: COLORS[(seed + i * 2) % COLORS.length],
       qty,
       unitPrice: Math.max(4_000, Math.round(per / qty / 500) * 500),
       lineTotal: i === lineCount - 1 ? total - per * (lineCount - 1) : per,
+      // Cost frozen at sale time — the profit report reads this, never the
+      // product's current cost (see domain/profit.js).
+      unitCost: product?.costing.actualCost ?? 0,
+      bundleUnitCost: BUNDLE_COST,
       bundled: { case: qty, cloth: qty },
     };
   });
@@ -148,19 +161,27 @@ export const demoVouchers = VOUCHER_SEED.map(([shopId, daysAgo, total, paid, typ
   };
 });
 
+/** Collection speed varies, so the on-time bonus has something to measure. */
+const COLLECTION_DAYS = [3, 6, 11, 18, 9, 22, 5, 13];
+
 export const demoPayments = demoVouchers
   .filter((v) => v.paidAmount > 0)
-  .map((v, i) => ({
-    id: `PM-${String(i + 1).padStart(4, '0')}`,
-    receiptNo: `RC-${String(4100 + i).padStart(5, '0')}`,
-    shopId: v.shopId,
-    amount: v.paidAmount,
-    method: ['CASH', 'KBZ_PAY', 'WAVE_PAY', 'BANK_TRANSFER'][i % 4],
-    receivedAt: iso(addDays(new Date(v.issueDate), 4)),
-    receivedBy: v.salesRepId,
-    allocations: [{ voucherId: v.id, voucherNo: v.voucherNo, amount: v.paidAmount }],
-    unappliedAmount: 0,
-  }));
+  .map((v, i) => {
+    const daysToPay = COLLECTION_DAYS[i % COLLECTION_DAYS.length];
+    return {
+      id: `PM-${String(i + 1).padStart(4, '0')}`,
+      receiptNo: `RC-${String(4100 + i).padStart(5, '0')}`,
+      shopId: v.shopId,
+      amount: v.paidAmount,
+      method: ['CASH', 'KBZ_PAY', 'WAVE_PAY', 'BANK_TRANSFER'][i % 4],
+      receivedAt: iso(addDays(new Date(v.issueDate), daysToPay)),
+      receivedBy: v.salesRepId,
+      allocations: [{ voucherId: v.id, voucherNo: v.voucherNo, amount: v.paidAmount, daysOverdue: Math.max(0, daysToPay - 14) }],
+      unappliedAmount: 0,
+      // Collected inside the 14-day term — what the rep's bonus is paid on.
+      onTime: daysToPay <= 14,
+    };
+  });
 
 /** Settings document — master password is stored as a hash, never plaintext. */
 export const demoSettings = {

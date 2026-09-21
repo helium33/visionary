@@ -214,6 +214,11 @@ one shop, so it keeps the offline cache small and the rules trivially scoped.
     colorCode: 'C1', colorName: 'Black',
     qty: 10, unitPrice: 18000, lineTotal: 180000,
     tierApplied: 'BULK', discountPct: 5,
+    // COST IS FROZEN HERE, not looked up on the product later. The next
+    // shipment lands at a different landed cost; history must not move with
+    // it. `bundleUnitCost` is the case + cloth that ship free with the frame —
+    // no revenue, real cost.
+    unitCost: 10450, bundleUnitCost: 827,
     bundled: { case: 10, cloth: 10 }   // auto-bundling record (§4.3)
   }],
 
@@ -452,7 +457,8 @@ screens stay on live vouchers, because a rolled-up figure cannot be aged.
 | Tiered pricing | `products.pricing` map × `shops.priceTier` × line-qty thresholds in `settings.tiers` |
 | Consignment | `vouchers.type = 'CONSIGNMENT'` — excluded from receivables *and* revenue |
 | Defective returns | `creditNotes` + `inventoryMoves` into `LOC-DAMAGED` |
-| Rep commission | `vouchers.salesRepId` + `payments.onTime` |
+| Rep commission | `vouchers.salesRepId` (volume) + `payments.onTime` (collection bonus) |
+| Net profit | `vouchers.items[].unitCost` (frozen COGS) − `expenses` in window |
 | Landed cost | `purchaseOrders.charges` → `products.costing.actualCost` |
 | Dead stock | `products.lastSoldAt` vs today, derived at read time — bands at 60 / 90 / 180 days |
 | Car stock | `stockLocations` type `CAR` + `variants.stock['LOC-CAR-*']` |

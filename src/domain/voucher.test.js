@@ -241,6 +241,14 @@ describe('buildVoucherDoc', () => {
     expect(a.voucherNo).not.toBe(b.voucherNo);
   });
 
+  it('freezes the cost of goods on the voucher', () => {
+    const totals = summariseVoucher({ lines });
+    const doc = buildVoucherDoc({ shop, lines, bundles, totals, actor });
+    // Frame cost plus the case and cloth that ship with it, captured at sale
+    // time so a later shipment cannot restate this voucher's margin.
+    expect(doc.items[0]).toMatchObject({ unitCost: 10_450, bundleUnitCost: 670 + 670 });
+  });
+
   it('records the bundled case and cloth on each frame line', () => {
     const totals = summariseVoucher({ lines });
     const doc = buildVoucherDoc({ shop, lines, bundles, totals, actor });

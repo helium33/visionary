@@ -19,8 +19,9 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Grid fast entry + vouchers** | Complete — matrix entry, tiered pricing, auto-bundling, credit gate, A4/A5/thermal print, chat share |
 | **Inventory** | Complete — stock matrix, EAN-13/QR label printing, dead-stock and low-stock reports |
 | **Purchasing & landed cost** | Complete — PO tracking, charge apportionment, receiving with cost write-back, expenses |
+| **Reports** | Complete — net profit bridge, model profitability, rep commissions |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
-| Car stock · Reports · Admin | Routed stubs; each lists its planned scope on screen |
+| Car stock · Users & audit | Routed stubs; each lists its planned scope on screen |
 
 ## Running it
 
@@ -66,12 +67,15 @@ visionary/
     │   ├── inventory.js           Stock valuation, dead-stock bands, label runs
     │   ├── landedCost.js          Charge apportionment, receipt plans, margins
     │   ├── purchasing.js          PO arrival state, expense roll-ups
+    │   ├── profit.js              P&L, the revenue→net bridge, model profitability
+    │   ├── commission.js          Rep volume plus the on-time collection bonus
     │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
     │   ├── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
     │   ├── barcode.test.js        Symbol encoding against the GS1 worked example
     │   ├── inventory.test.js      Dead-stock bands, valuation, label runs
     │   ├── landedCost.test.js     Apportionment balance, FX, short deliveries
-    │   └── purchasing.test.js     Late shipments, expense windows
+    │   ├── purchasing.test.js     Late shipments, expense windows
+    │   └── profit.test.js         Frozen COGS, the bridge, commission split
     ├── services/                ← Side effects. Everything that writes.
     │   ├── dataSource.js          One subscription layer over Firestore or demo data
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
@@ -92,6 +96,7 @@ visionary/
     │   ├── voucher/               ModelPicker, GridFastEntry, lines, totals, print
     │   ├── inventory/             StockMatrix, barcode/QR SVG, label sheet, alert tables
     │   ├── purchasing/            PoTable, landed-cost breakdown, receiving, expenses
+    │   ├── reports/               Commission table with the on-time meter
     │   └── layout/                AppShell, SyncBadge
     ├── pages/
     │   ├── Dashboard.jsx
@@ -100,6 +105,7 @@ visionary/
     │   ├── VoucherList.jsx
     │   ├── Inventory.jsx          Stock matrix, labels, dead stock
     │   ├── Purchasing.jsx         Landed cost, receiving, general expenses
+    │   ├── Reports.jsx            Net profit bridge, model margins, commissions
     │   ├── Login.jsx
     │   └── Placeholder.jsx        Honest stubs for the unbuilt modules
     ├── lib/                       firebase.js, constants.js, dates.js, format.js
@@ -202,6 +208,30 @@ The basis (by value or by quantity) is **stored on the purchase order**, because
 materially different unit costs — a titanium frame and a kids' frame take the same carton space
 but not the same invoice line — and neither is inherently correct. The business has to be able to
 say which it used.
+
+## Net profit and commissions
+
+Net profit is revenue − cost of goods − general expenses, computed from documents rather than a
+stored summary. Two decisions make it honest:
+
+**Cost of goods is read off the voucher, not the product.** Every sold line carries the landed
+cost it was sold at. Looking the cost up on the product today would mean that receiving a
+shipment at a new landed price silently restates last quarter's profit — the figure would move
+without a single sale changing. Where an older voucher predates that field, the product's current
+cost is used and the result is flagged on screen, because a number the business might act on
+should say when it is a guess.
+
+**Commission has two halves, and the split is the point.** Paying on sales alone rewards a rep
+for selling to shops that never pay: the voucher counts the day it is written and the debt
+becomes someone else's problem. So base commission is a percentage of what the rep sold, and the
+bonus is a percentage of what they *collected inside the 14-day term* — the same `payments.onTime`
+flag the payment write sets. The table shows the bonus forgone by collecting late, so a rep can
+see what the incentive is actually worth.
+
+The profit bridge is drawn as a horizontal waterfall: revenue, less cost of goods, gross profit,
+then each expense category, landing on net. Its scale includes zero and any negative running
+total, so a loss-making period draws correctly instead of collapsing — a chart that cannot show a
+loss is a chart that hides one.
 
 Payments allocate **oldest voucher first**, because the oldest is the one about to trip the
 lock. The allocation is computed by the same pure function that the write uses, so the preview

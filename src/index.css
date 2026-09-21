@@ -31,6 +31,11 @@
   --series-4: #eda100;
   --series-5: #e87ba4;
 
+  /* Diverging pair — polarity, not severity. Used by the profit waterfall so
+     status colours stay reserved for state. Validated against both surfaces. */
+  --diverge-pos: #2a78d6;
+  --diverge-neg: #e34948;
+
   /* Sequential blue ramp (magnitude encoding). */
   --seq-250: #86b6ef;
   --seq-350: #5598e7;
@@ -72,6 +77,9 @@
     --series-4: #c98500;
     --series-5: #d55181;
 
+    --diverge-pos: #3987e5;
+    --diverge-neg: #e66767;
+
     --seq-250: #184f95;
     --seq-350: #256abf;
     --seq-450: #3987e5;
@@ -105,6 +113,9 @@
   --series-3: #199e70;
   --series-4: #c98500;
   --series-5: #d55181;
+
+  --diverge-pos: #3987e5;
+  --diverge-neg: #e66767;
 
   --seq-250: #184f95;
   --seq-350: #256abf;
