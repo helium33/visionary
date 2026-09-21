@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Login from './pages/Login';
 import Placeholder from './pages/Placeholder';
+import Purchasing from './pages/Purchasing';
 import VoucherCreate from './pages/VoucherCreate';
 import VoucherList from './pages/VoucherList';
 
@@ -51,18 +52,7 @@ function AuthedApp() {
           }
         />
         <Route path="/inventory" element={<Inventory />} />
-        <Route
-          path="/purchasing/*"
-          element={
-            <Placeholder
-              title="Purchasing & landed cost"
-              scope={[
-                'PO capture: factory price, cargo, transport, labeling → actual landed cost per piece',
-                'Net profit: revenue − (landed cost + salaries, office, fees)',
-              ]}
-            />
-          }
-        />
+        <Route path="/purchasing" element={<Purchasing />} />
         <Route
           path="/logistics/*"
           element={

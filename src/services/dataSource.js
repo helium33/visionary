@@ -9,6 +9,7 @@ import {
 import { COL, db, isDemoMode } from '../lib/firebase';
 import { demoPayments, demoShops, demoUsers, demoVouchers } from '../data/demoData';
 import { demoProducts, demoStockLocations } from '../data/demoProducts';
+import { demoExpenses, demoPurchaseOrders, demoSuppliers } from '../data/demoPurchases';
 
 /**
  * One subscription layer for both sources.
@@ -192,4 +193,31 @@ export function subscribeStockLocations(cb, onError) {
     cb,
     onError,
   );
+}
+
+export function subscribePurchaseOrders(cb, onError) {
+  if (isDemoMode) return demoSubscribe(demoPurchaseOrders, cb);
+  return liveSubscribe(
+    query(collection(db, COL.purchaseOrders), orderBy('orderedAt', 'desc')),
+    cb,
+    onError,
+  );
+}
+
+export function subscribeExpenses(cb, { since } = {}, onError) {
+  if (isDemoMode) {
+    const rows = since ? demoExpenses.filter((e) => new Date(e.date) >= since) : demoExpenses;
+    return demoSubscribe(rows, cb);
+  }
+  const clauses = since ? [where('date', '>=', since)] : [];
+  return liveSubscribe(
+    query(collection(db, COL.expenses), ...clauses, orderBy('date', 'desc')),
+    cb,
+    onError,
+  );
+}
+
+export function subscribeSuppliers(cb, onError) {
+  if (isDemoMode) return demoSubscribe(demoSuppliers, cb);
+  return liveSubscribe(collection(db, 'suppliers'), cb, onError);
 }

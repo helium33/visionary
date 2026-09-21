@@ -18,8 +18,9 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Main dashboard** | Complete — receivables, township/shop rankings, sales vs collections |
 | **Grid fast entry + vouchers** | Complete — matrix entry, tiered pricing, auto-bundling, credit gate, A4/A5/thermal print, chat share |
 | **Inventory** | Complete — stock matrix, EAN-13/QR label printing, dead-stock and low-stock reports |
+| **Purchasing & landed cost** | Complete — PO tracking, charge apportionment, receiving with cost write-back, expenses |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
-| Purchasing · Car stock · Reports · Admin | Routed stubs; each lists its planned scope on screen |
+| Car stock · Reports · Admin | Routed stubs; each lists its planned scope on screen |
 
 ## Running it
 
@@ -63,10 +64,14 @@ visionary/
     │   ├── voucher.js             Cart pricing, auto-bundling, stock check, invoice maths
     │   ├── barcode.js             EAN-13 encoder and check digit; QR payloads
     │   ├── inventory.js           Stock valuation, dead-stock bands, label runs
+    │   ├── landedCost.js          Charge apportionment, receipt plans, margins
+    │   ├── purchasing.js          PO arrival state, expense roll-ups
     │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
     │   ├── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
     │   ├── barcode.test.js        Symbol encoding against the GS1 worked example
-    │   └── inventory.test.js      Dead-stock bands, valuation, label runs
+    │   ├── inventory.test.js      Dead-stock bands, valuation, label runs
+    │   ├── landedCost.test.js     Apportionment balance, FX, short deliveries
+    │   └── purchasing.test.js     Late shipments, expense windows
     ├── services/                ← Side effects. Everything that writes.
     │   ├── dataSource.js          One subscription layer over Firestore or demo data
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
@@ -86,6 +91,7 @@ visionary/
     │   ├── credit/                DueMeter, CollectionTable, and the four dialogs
     │   ├── voucher/               ModelPicker, GridFastEntry, lines, totals, print
     │   ├── inventory/             StockMatrix, barcode/QR SVG, label sheet, alert tables
+    │   ├── purchasing/            PoTable, landed-cost breakdown, receiving, expenses
     │   └── layout/                AppShell, SyncBadge
     ├── pages/
     │   ├── Dashboard.jsx
@@ -93,6 +99,7 @@ visionary/
     │   ├── VoucherCreate.jsx      Grid fast entry → invoice → print/share
     │   ├── VoucherList.jsx
     │   ├── Inventory.jsx          Stock matrix, labels, dead stock
+    │   ├── Purchasing.jsx         Landed cost, receiving, general expenses
     │   ├── Login.jsx
     │   └── Placeholder.jsx        Honest stubs for the unbuilt modules
     ├── lib/                       firebase.js, constants.js, dates.js, format.js
@@ -170,6 +177,31 @@ to discover at a shop counter. The encoder is tested against the GS1 worked exam
 the printer rasterises them at its own resolution — sharp at 203dpi on a thermal head and at
 600dpi on an office laser — and are sized in millimetres, because label stock is sold in
 millimetres and pixel sizing would misalign every sticker on the sheet.
+
+## Landed cost
+
+Factory price + cargo + transport + labeling = actual cost. Receiving a purchase order is the
+one moment estimated cost becomes real: it writes the landed figure back to
+`products.costing.actualCost`, and every margin, stock valuation and dead-stock capital number in
+the system reads that single field.
+
+Two rules the apportionment is strict about:
+
+**The charges balance to the kyat.** Spreading K 420,000 of cargo across eleven lines by naive
+rounding loses or invents a few kyat every time, and those compound into a cost base nobody can
+reconcile with the shipping invoice. A largest-remainder split makes the shares sum to the total
+exactly, always.
+
+**A short delivery makes each surviving piece dearer, not cheaper.** At receipt the charges are
+spread over what actually arrived, not over what was ordered — the freight invoice being entered
+covers the shipment that came, so apportioning it over quantities that never turned up would put
+real money on phantom pieces. Ten of seventy arriving moves that line from K 8,088 to K 8,387 a
+piece, and the margin column drops to match.
+
+The basis (by value or by quantity) is **stored on the purchase order**, because the two give
+materially different unit costs — a titanium frame and a kids' frame take the same carton space
+but not the same invoice line — and neither is inherently correct. The business has to be able to
+say which it used.
 
 Payments allocate **oldest voucher first**, because the oldest is the one about to trip the
 lock. The allocation is computed by the same pure function that the write uses, so the preview

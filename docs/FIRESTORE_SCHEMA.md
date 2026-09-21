@@ -381,6 +381,16 @@ receipt. `allocationBasis` is stored because apportioning K 420,000 of cargo by 
 quantity give materially different unit costs, and the business must be able to say which it
 used.
 
+Two details the implementation is strict about:
+
+- **Charges balance to the kyat.** Apportioning by naive rounding loses or invents a few kyat on
+  every line, and a cost base that cannot be reconciled with the shipping invoice is worse than
+  no cost base. A largest-remainder split guarantees the shares sum to the charge total exactly.
+- **A short delivery makes each surviving piece dearer.** At receipt the charges are spread over
+  `receivedQty`, not over what was ordered: the freight invoice being typed in covers the
+  shipment that actually came, so apportioning it over quantities that never turned up would
+  spread real money across phantom pieces and undervalue the stock on the shelf.
+
 ### `expenses/{expenseId}`
 
 ```js
