@@ -329,6 +329,15 @@ half-applied.
 `stock` is a **map keyed by location** rather than one document per location, because a stock
 figure is only ever read together with its siblings ("where is this colour?").
 
+**Two read patterns, deliberately different.** The voucher screen fetches variants *per model* —
+it touches three models, so pulling 240 documents would be waste. The inventory screen is the
+opposite: stock totals, low-stock counts and dead-stock capital are all sums across the whole
+matrix, so lazy loading would report zero until someone happened to open each model. It uses a
+**collection-group query** on `variants`, regrouping by parent product id from each document's
+reference. That query needs its own security rule and its own index — see §5 and §7; a nested
+path rule does *not* authorise a collection-group read, and the automatic single-field index
+only covers `COLLECTION` scope.
+
 ### `inventoryMoves/{moveId}` — the immutable stock journal
 
 ```js
@@ -428,14 +437,14 @@ screens stay on live vouchers, because a rolled-up figure cannot be aged.
 | Partial payment, oldest first | `allocatePayment()` FIFO, stored in `payments.allocations` |
 | Matrix inventory | `products` + `variants/{colorCode}` subcollection |
 | Grid fast entry | One read of a model's `variants`, one batched voucher write |
-| Barcode labels | `variants.barcode` + `products.pricing[tier]` |
+| Barcode labels | `variants.barcode` (EAN-13, check digit computed) + `products.pricing[tier]` |
 | Auto-bundling | `products.bundle` → extra `inventoryMoves` on each SALE |
 | Tiered pricing | `products.pricing` map × `shops.priceTier` × line-qty thresholds in `settings.tiers` |
 | Consignment | `vouchers.type = 'CONSIGNMENT'` — excluded from receivables *and* revenue |
 | Defective returns | `creditNotes` + `inventoryMoves` into `LOC-DAMAGED` |
 | Rep commission | `vouchers.salesRepId` + `payments.onTime` |
 | Landed cost | `purchaseOrders.charges` → `products.costing.actualCost` |
-| Dead stock | `products.lastSoldAt < now − 90 days` |
+| Dead stock | `products.lastSoldAt` vs today, derived at read time — bands at 60 / 90 / 180 days |
 | Car stock | `stockLocations` type `CAR` + `variants.stock['LOC-CAR-*']` |
 | Offline | `persistentLocalCache`, device-generated IDs, batched writes, derived status |
 | Audit log | `auditLogs`, create-only |
@@ -456,6 +465,8 @@ shops:     salesRepId ASC, credit.status ASC       ← "my locked shops"
 shops:     township ASC, name ASC
 inventoryMoves: productId ASC, at DESC
 auditLogs: entityId ASC, at DESC
+
+fieldOverride: variants.colorCode ASC at COLLECTION_GROUP scope   ← the inventory matrix
 ```
 
 Shipped in `firestore.indexes.json`.
@@ -500,6 +511,8 @@ vouchers      create: SALES/ADMIN, and only when the shop is not locked (or an o
               delete: nobody — void instead, so the audit trail survives
 payments      create: accountant/admin/SALES(collect)    update/delete: nobody
 products      read: all signed in     write: warehouse/admin
+variants      read: nested (per model) AND collection-group (whole matrix, inventory screen)
+              write: warehouse/admin; SALES may touch only `stock` and `reserved`
 inventoryMoves create: warehouse/sales/admin             update/delete: nobody
 auditLogs     create: any signed-in user                 update/delete: NOBODY
 settings      read: admin only    masterPasswordHash: read: false for everyone

@@ -17,8 +17,9 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Credit control dashboard** | Complete — ageing, worklist, FIFO payments, master-password release, statements |
 | **Main dashboard** | Complete — receivables, township/shop rankings, sales vs collections |
 | **Grid fast entry + vouchers** | Complete — matrix entry, tiered pricing, auto-bundling, credit gate, A4/A5/thermal print, chat share |
+| **Inventory** | Complete — stock matrix, EAN-13/QR label printing, dead-stock and low-stock reports |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
-| Inventory · Purchasing · Car stock · Reports · Admin | Routed stubs; each lists its planned scope on screen |
+| Purchasing · Car stock · Reports · Admin | Routed stubs; each lists its planned scope on screen |
 
 ## Running it
 
@@ -60,8 +61,12 @@ visionary/
     │   ├── allocation.js          FIFO payment + credit-note allocation
     │   ├── pricing.js             Tier resolution — best single tier, never stacked
     │   ├── voucher.js             Cart pricing, auto-bundling, stock check, invoice maths
+    │   ├── barcode.js             EAN-13 encoder and check digit; QR payloads
+    │   ├── inventory.js           Stock valuation, dead-stock bands, label runs
     │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
-    │   └── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
+    │   ├── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
+    │   ├── barcode.test.js        Symbol encoding against the GS1 worked example
+    │   └── inventory.test.js      Dead-stock bands, valuation, label runs
     ├── services/                ← Side effects. Everything that writes.
     │   ├── dataSource.js          One subscription layer over Firestore or demo data
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
@@ -80,12 +85,14 @@ visionary/
     │   ├── charts/                BarList, AgingBar, TrendChart, shared tooltip
     │   ├── credit/                DueMeter, CollectionTable, and the four dialogs
     │   ├── voucher/               ModelPicker, GridFastEntry, lines, totals, print
+    │   ├── inventory/             StockMatrix, barcode/QR SVG, label sheet, alert tables
     │   └── layout/                AppShell, SyncBadge
     ├── pages/
     │   ├── Dashboard.jsx
     │   ├── CreditManagement.jsx
     │   ├── VoucherCreate.jsx      Grid fast entry → invoice → print/share
     │   ├── VoucherList.jsx
+    │   ├── Inventory.jsx          Stock matrix, labels, dead stock
     │   ├── Login.jsx
     │   └── Placeholder.jsx        Honest stubs for the unbuilt modules
     ├── lib/                       firebase.js, constants.js, dates.js, format.js
@@ -147,6 +154,22 @@ cost.
 charge, so they stay off the invoice total and still leave the warehouse — otherwise the case
 count drifts from reality within a month. A missing cloth warns; it does not block a
 K 2,000,000 frame order.
+
+## Inventory, labels and dead stock
+
+Dead stock is derived from `products.lastSoldAt` against today — the same shape as credit
+status. A model goes dead at midnight on its ninetieth day with nothing written and nobody
+notified, so the flag has to be computed at read time or it is wrong by definition. Bands sit at
+60 (slowing), 90 (dead) and 180 days (stranded), and the column that matters is the **capital at
+landed cost**, because that is what justifies a clearance price.
+
+Barcodes are **encoded in `src/domain/barcode.js`, not pulled from a library**: EAN-13 is a fixed
+table and forty lines of logic, it has to work offline, and a wrong barcode is an expensive thing
+to discover at a shop counter. The encoder is tested against the GS1 worked example
+(`5901234123457`) including the parity trick that carries the first digit. Labels render as SVG so
+the printer rasterises them at its own resolution — sharp at 203dpi on a thermal head and at
+600dpi on an office laser — and are sized in millimetres, because label stock is sold in
+millimetres and pixel sizing would misalign every sticker on the sheet.
 
 Payments allocate **oldest voucher first**, because the oldest is the one about to trip the
 lock. The allocation is computed by the same pure function that the write uses, so the preview

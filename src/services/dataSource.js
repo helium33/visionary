@@ -1,4 +1,11 @@
-import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import {
+  collection,
+  collectionGroup,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from 'firebase/firestore';
 import { COL, db, isDemoMode } from '../lib/firebase';
 import { demoPayments, demoShops, demoUsers, demoVouchers } from '../data/demoData';
 import { demoProducts, demoStockLocations } from '../data/demoProducts';
@@ -134,6 +141,47 @@ export function subscribeVariants(productId, cb, onError) {
     query(collection(db, COL.products, productId, COL.variants), orderBy('colorCode', 'asc')),
     cb,
     onError,
+  );
+}
+
+/**
+ * EVERY colour of every model, in one collection-group query.
+ *
+ * The voucher screen loads variants per model on purpose — it touches three.
+ * The inventory screen is the opposite case: stock totals, low-stock counts and
+ * dead-stock capital are all sums over the whole matrix, so lazy loading would
+ * report zero until the warehouse happened to open each model.
+ *
+ * A collection-group query reads `variants` wherever it appears, so each
+ * document carries its parent product id (taken from the reference) to be
+ * regrouped. Firestore rules must grant this separately from the nested path —
+ * see the `/{path=**}/variants` rule in firestore.rules.
+ */
+export function subscribeAllVariants(cb, onError) {
+  if (isDemoMode) {
+    const rows = demoProducts.flatMap((product) =>
+      (product.variants ?? []).map((variant) => ({ ...variant, productId: product.id })),
+    );
+    return demoSubscribe(rows, cb);
+  }
+  return onSnapshot(
+    query(collectionGroup(db, COL.variants), orderBy('colorCode', 'asc')),
+    { includeMetadataChanges: true },
+    (snap) => {
+      cb({
+        data: snap.docs.map((d) => ({
+          id: d.id,
+          productId: d.ref.parent.parent?.id ?? null,
+          ...d.data(),
+        })),
+        pendingWrites: snap.metadata.hasPendingWrites,
+        fromCache: snap.metadata.fromCache,
+      });
+    },
+    (error) => {
+      console.error('[dataSource] variant group listener failed', error);
+      onError?.(error);
+    },
   );
 }
 

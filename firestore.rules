@@ -126,6 +126,17 @@ service cloud.firestore {
       }
     }
 
+    // COLLECTION-GROUP READ. The nested rule above authorises
+    // products/{id}/variants/{code} by path; it does NOT authorise a
+    // collectionGroup('variants') query, which Firestore treats as a separate
+    // target. The inventory screen needs the whole matrix in one listener, so
+    // that query is granted here. Reads only — writes still go through the
+    // nested rule, which is narrower. `variants` exists nowhere else in the
+    // schema, so the recursive wildcard cannot reach anything unintended.
+    match /{path=**}/variants/{colorCode} {
+      allow read: if signedIn();
+    }
+
     match /inventoryMoves/{moveId} {
       allow read: if signedIn();
       allow create: if isAdmin() || isWarehouse() || isSales();

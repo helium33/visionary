@@ -1,4 +1,5 @@
 import { subDays } from 'date-fns';
+import { toEan13 } from '../domain/barcode';
 
 /**
  * Matrix product catalogue — mirrors `products/{id}` + `products/{id}/variants/{colorCode}`
@@ -75,7 +76,11 @@ export const demoProducts = [
         colorCode: code,
         colorName: COLOURS[code].name,
         hex: COLOURS[code].hex,
-        barcode: `885${String(FRAME_SEED.findIndex((f) => f[0] === modelNo)).padStart(3, '0')}${String(i).padStart(3, '0')}${modelNo.length}`,
+        // 885 = Myanmar's GS1 country prefix, 1234 = company code, then a
+        // five-digit item reference. The check digit is computed, never typed.
+        barcode: toEan13(
+          `8851234${String(FRAME_SEED.findIndex((f) => f[0] === modelNo)).padStart(2, '0')}${String(i).padStart(3, '0')}`,
+        ),
         stock: { 'LOC-MAIN': stock[i], 'LOC-CAR-ZM': i === 0 ? 4 : 0, 'LOC-DAMAGED': 0 },
         reserved: 0,
         reorderPoint: 10,
@@ -105,7 +110,7 @@ export const demoProducts = [
         colorCode: 'C0',
         colorName: 'Standard',
         hex: '#2a2a28',
-        barcode: '8859990001',
+        barcode: toEan13('885123499001'),
         stock: { 'LOC-MAIN': 412, 'LOC-CAR-ZM': 20, 'LOC-DAMAGED': 0 },
         reserved: 0,
         reorderPoint: 100,
@@ -133,7 +138,7 @@ export const demoProducts = [
         colorCode: 'C0',
         colorName: 'Standard',
         hex: '#5d6b74',
-        barcode: '8859990002',
+        barcode: toEan13('885123499002'),
         stock: { 'LOC-MAIN': 380, 'LOC-CAR-ZM': 20, 'LOC-DAMAGED': 0 },
         reserved: 0,
         reorderPoint: 100,

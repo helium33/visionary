@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import { useCreditData } from './hooks/useCreditData';
 import CreditManagement from './pages/CreditManagement';
 import Dashboard from './pages/Dashboard';
+import Inventory from './pages/Inventory';
 import Login from './pages/Login';
 import Placeholder from './pages/Placeholder';
 import VoucherCreate from './pages/VoucherCreate';
@@ -49,21 +50,7 @@ function AuthedApp() {
             />
           }
         />
-        <Route
-          path="/inventory/*"
-          element={
-            <Placeholder
-              title="Inventory"
-              scope={[
-                'Matrix products: model × colour, with material and shape attributes',
-                'Grid fast entry for receiving and ordering',
-                'Barcode / QR label printing with model, colour and wholesale price',
-                'Low-stock and dead-stock (no sale in 3 months) alerts',
-                'Damaged-goods bucket fed by defective returns',
-              ]}
-            />
-          }
-        />
+        <Route path="/inventory" element={<Inventory />} />
         <Route
           path="/purchasing/*"
           element={
