@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  getRedirectResult,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
+} from 'firebase/auth';
 import { useForm } from 'react-hook-form';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { auth } from '../lib/firebase';
@@ -8,6 +14,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { BrandLogo } from '../components/brand/BrandLogo';
 import { LanguageToggle } from '../components/layout/LanguageToggle';
+import { ThemeToggle } from '../components/layout/ThemeToggle';
 import { Button } from '../components/ui/Button';
 
 const googleProvider = new GoogleAuthProvider();
@@ -22,7 +29,12 @@ const googleProvider = new GoogleAuthProvider();
  *
  * Returns `null` for the Google popup's own cancel codes — closing the
  * account picker or dismissing the popup is not an error to alarm someone
- * over, it's just declining to continue.
+ * over, it's just declining to continue. `auth/operation-not-allowed` and
+ * `auth/unauthorized-domain` are configuration problems in the Firebase
+ * project itself (a sign-in method not switched on, or a domain not
+ * allow-listed) rather than anything wrong with what the person typed or
+ * clicked — worth saying plainly rather than folding into the generic
+ * fallback, since "try again" would never fix either one.
  */
 function loginErrorMessage(error, t) {
   switch (error?.code) {
@@ -36,12 +48,33 @@ function loginErrorMessage(error, t) {
       return t('login.errorUserDisabled');
     case 'auth/too-many-requests':
       return t('login.errorTooManyRequests');
+    case 'auth/operation-not-allowed':
+      return t('login.errorOperationNotAllowed');
+    case 'auth/unauthorized-domain':
+      return t('login.errorUnauthorizedDomain');
+    case 'auth/network-request-failed':
+      return t('login.errorNetworkFailed');
     case 'auth/popup-closed-by-user':
     case 'auth/cancelled-popup-request':
       return null;
     default:
       return t('login.errorDefault');
   }
+}
+
+/**
+ * Popups are blocked outright by some browsers, and fail unconditionally
+ * inside a cross-origin iframe (a claude.ai Artifact preview, notably) —
+ * Google's own OAuth flow refuses to run inside one. `signInWithRedirect`
+ * has neither restriction, so it's the fallback whenever the popup itself
+ * couldn't open or run, not just when Firebase reports it as blocked.
+ */
+function isPopupUnavailable(error) {
+  return [
+    'auth/popup-blocked',
+    'auth/operation-not-supported-in-this-environment',
+    'auth/web-storage-unsupported',
+  ].includes(error?.code);
 }
 
 export default function Login() {
@@ -56,6 +89,17 @@ export default function Login() {
     handleSubmit,
     formState: { errors },
   } = useForm();
+
+  // Completing a signInWithRedirect round trip: the browser just navigated
+  // back here from Google with the result in the URL, not in a popup's
+  // return value. onAuthStateChanged also picks up the resulting session,
+  // but only this call surfaces the specific error if the redirect itself
+  // failed (e.g. the domain isn't authorised) rather than leaving the
+  // person on a blank sign-in form with no explanation.
+  useEffect(() => {
+    getRedirectResult(auth).catch((err) => setError(loginErrorMessage(err, t)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Already signed in — either ProtectedRoute sent a visitor here mid-session
   // (Firebase's own persisted session resolving after a fresh page load) or
@@ -86,6 +130,15 @@ export default function Login() {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
+      if (isPopupUnavailable(err)) {
+        // The page is about to navigate away for the redirect round trip,
+        // so whether `finally` below still flips googleBusy back to false
+        // in the instant before that happens doesn't matter — there's
+        // nothing left on screen to look busy or not by the time it would.
+        setError(loginErrorMessage({ code: 'auth/popup-blocked' }, t));
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
       setError(loginErrorMessage(err, t));
     } finally {
       setGoogleBusy(false);
@@ -94,8 +147,9 @@ export default function Login() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-plane px-4 py-10">
-      <div className="absolute right-4 top-4">
+      <div className="absolute right-4 top-4 flex items-center gap-2">
         <LanguageToggle />
+        <ThemeToggle />
       </div>
 
       <div className="w-full max-w-md">

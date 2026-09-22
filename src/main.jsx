@@ -4,6 +4,7 @@ import { BrowserRouter, HashRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { LocaleProvider } from './context/LocaleContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './components/ui/Toast';
 import './index.css';
 
@@ -27,13 +28,15 @@ if (!isStaticPreview) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Router>
-      <LocaleProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </AuthProvider>
-      </LocaleProvider>
+      <ThemeProvider>
+        <LocaleProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </AuthProvider>
+        </LocaleProvider>
+      </ThemeProvider>
     </Router>
   </StrictMode>,
 );

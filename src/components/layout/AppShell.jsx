@@ -20,6 +20,7 @@ import { useLocale } from '../../context/LocaleContext';
 import { BrandLogo } from '../brand/BrandLogo';
 import { LanguageToggle } from './LanguageToggle';
 import { SyncBadge } from './SyncBadge';
+import { ThemeToggle } from './ThemeToggle';
 
 // `labelKey` indexes the `nav.*` dictionary namespace (src/i18n/dictionary.js)
 // so the sidebar re-labels itself the instant the language toggle is used —
@@ -68,11 +69,12 @@ export function AppShell({ sync, children }) {
           </button>
         </div>
 
-        {/* The toggle lives beside the wordmark so it is reachable without
-            opening the mobile menu drawer first — language choice should not
-            require navigating past the thing it is about to relabel. */}
-        <div className="border-b border-line-hair px-3 py-2 lg:hidden">
+        {/* The toggles live beside the wordmark so they're reachable without
+            opening the mobile menu drawer first — language/theme choice
+            should not require navigating past the thing it's about to change. */}
+        <div className="flex items-center gap-2 border-b border-line-hair px-3 py-2 lg:hidden">
           <LanguageToggle />
+          <ThemeToggle />
         </div>
 
         <nav className="space-y-0.5 p-2">
@@ -155,10 +157,11 @@ export function AppShell({ sync, children }) {
                 {t('header.demoData')}
               </span>
             ) : null}
-            {/* Visible at every width: the drawer's own copy (below) only
+            {/* Visible at every width: the drawer's own copy (above) only
                 helps once the drawer is open, and the backdrop that opening
                 it adds covers this sticky header anyway. */}
             <LanguageToggle />
+            <ThemeToggle />
             <SyncBadge sync={sync} />
           </div>
         </header>

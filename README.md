@@ -432,6 +432,44 @@ no error at all; declining to continue isn't a mistake to alarm someone over. Go
 still needs to be turned on for the provider in that Firebase project's console before it will
 succeed for real — the code has nothing further to configure.
 
+**A blocked or unavailable popup falls back to a redirect automatically**, instead of just
+failing. `signInWithPopup` doesn't only get rejected when a browser's own popup blocker fires;
+`auth/operation-not-supported-in-this-environment` and `auth/web-storage-unsupported` are the same
+underlying problem — nowhere for the popup to run — and get the same fallback:
+`isPopupUnavailable()` in `Login.jsx` catches all three and retries with
+`signInWithRedirect(auth, googleProvider)`, whose result is picked up on the next page load by a
+`getRedirectResult(auth)` call on mount. This matters specifically for a claude.ai Artifact
+preview: Google's OAuth popup refuses to run inside a cross-origin iframe at all, which is exactly
+how a preview link renders, so the redirect path is what makes Google sign-in reachable there —
+though a redirect back still lands on the iframe's own URL, not the top-level page, so a full
+round trip still needs the standalone deployed app, not the embedded preview, to actually finish.
+Two more error codes get specific copy for the same reason `operation-not-allowed` already did —
+`auth/unauthorized-domain` and `auth/network-request-failed` are configuration or connectivity
+problems no retry fixes, so they say so instead of the generic "try again."
+
+## Light & dark mode
+
+`ThemeContext.jsx` adds a manual override on top of theming that already existed —
+`src/index.css` has always defined light tokens on bare `:root` and a dark set both under
+`prefers-color-scheme: dark` and under an explicit `:root[data-theme='dark']`, precisely so an
+override could win in either direction later. Nothing ever set `data-theme` until now; every
+screen simply followed the OS.
+
+**The override stays off until the first click.** `ThemeContext`'s `theme` value is
+`override ?? (systemPrefersDark() ? 'dark' : 'light')` — so a visitor who never touches the
+toggle keeps following their OS setting live, exactly as before, including a change to it made
+while the app is open. The moment `setTheme`/`toggleTheme` is called once, `override` becomes
+sticky and is persisted to `localStorage['visionary.theme']`, surviving reloads until changed
+again.
+
+**`<ThemeToggle/>`** (`src/components/layout/ThemeToggle.jsx`) is deliberately the same
+pill-group shape as the existing `<LanguageToggle/>` — both options always visible,
+`aria-pressed` marking the active one — rather than a single icon that flips meaning on click,
+so the current state is always readable at a glance, not just after the fact. It sits beside the
+language toggle in three places: the persistent header, the mobile drawer, and the login page,
+since theme (like language) is a choice that shouldn't require navigating past what it's about
+to change.
+
 ## Shops & townships
 
 The shop directory itself, not its analytics — Reports' Shops & townships tab already answers
