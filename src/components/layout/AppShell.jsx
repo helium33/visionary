@@ -16,22 +16,28 @@ import {
 } from 'lucide-react';
 import { ROLE_LABELS } from '../../lib/constants';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
+import { LanguageToggle } from './LanguageToggle';
 import { SyncBadge } from './SyncBadge';
 
+// `labelKey` indexes the `nav.*` dictionary namespace (src/i18n/dictionary.js)
+// so the sidebar re-labels itself the instant the language toggle is used —
+// nothing here hardcodes English.
 const NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, permission: null },
-  { to: '/credit', label: 'Credit control', icon: CreditCard, permission: null },
-  { to: '/vouchers', label: 'Vouchers', icon: Receipt, permission: 'voucher:create' },
-  { to: '/shops', label: 'Shops & townships', icon: Store, permission: null },
-  { to: '/inventory', label: 'Inventory', icon: Boxes, permission: 'inventory:read' },
-  { to: '/purchasing', label: 'Purchasing & cost', icon: Package, permission: 'po:read' },
-  { to: '/logistics', label: 'Car stock', icon: Truck, permission: 'stock:car' },
-  { to: '/reports', label: 'Reports', icon: BarChart3, permission: 'profit:read' },
-  { to: '/admin', label: 'Users & audit', icon: Users, permission: '*' },
+  { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard, permission: null },
+  { to: '/credit', labelKey: 'nav.credit', icon: CreditCard, permission: null },
+  { to: '/vouchers', labelKey: 'nav.vouchers', icon: Receipt, permission: 'voucher:create' },
+  { to: '/shops', labelKey: 'nav.shops', icon: Store, permission: null },
+  { to: '/inventory', labelKey: 'nav.inventory', icon: Boxes, permission: 'inventory:read' },
+  { to: '/purchasing', labelKey: 'nav.purchasing', icon: Package, permission: 'po:read' },
+  { to: '/logistics', labelKey: 'nav.logistics', icon: Truck, permission: 'stock:car' },
+  { to: '/reports', labelKey: 'nav.reports', icon: BarChart3, permission: 'profit:read' },
+  { to: '/admin', labelKey: 'nav.admin', icon: Users, permission: '*' },
 ];
 
 export function AppShell({ sync, children }) {
   const { user, can, isDemoMode, demoUsers, switchDemoUser } = useAuth();
+  const { t } = useLocale();
   const [open, setOpen] = useState(false);
 
   // `permission: null` is open to every signed-in role; '*' is admin-only.
@@ -61,6 +67,13 @@ export function AppShell({ sync, children }) {
           </button>
         </div>
 
+        {/* The toggle lives beside the wordmark so it is reachable without
+            opening the mobile menu drawer first — language choice should not
+            require navigating past the thing it is about to relabel. */}
+        <div className="border-b border-line-hair px-3 py-2 lg:hidden">
+          <LanguageToggle />
+        </div>
+
         <nav className="space-y-0.5 p-2">
           {items.map((item) => (
             <NavLink
@@ -77,7 +90,7 @@ export function AppShell({ sync, children }) {
               }
             >
               <item.icon size={16} aria-hidden="true" />
-              {item.label}
+              {t(item.labelKey)}
             </NavLink>
           ))}
         </nav>
@@ -124,9 +137,13 @@ export function AppShell({ sync, children }) {
           <div className="ml-auto flex items-center gap-2">
             {isDemoMode ? (
               <span className="hidden rounded bg-wash-warning px-2 py-1 text-2xs font-medium text-ink sm:inline">
-                Demo data
+                {t('header.demoData')}
               </span>
             ) : null}
+            {/* Visible at every width: the drawer's own copy (below) only
+                helps once the drawer is open, and the backdrop that opening
+                it adds covers this sticky header anyway. */}
+            <LanguageToggle />
             <SyncBadge sync={sync} />
           </div>
         </header>

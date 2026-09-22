@@ -23,10 +23,12 @@ import {
 import { fmtDate } from '../lib/dates';
 import { fmtMMK, fmtPct } from '../lib/format';
 import { useCatalogue } from '../hooks/useCatalogue';
+import { useLocale } from '../context/LocaleContext';
 import { useToday } from '../hooks/useToday';
 import { BarList } from '../components/charts/BarList';
 import { Waterfall } from '../components/charts/Waterfall';
 import { CommissionTable } from '../components/reports/CommissionTable';
+import { ShopsTownshipsReport } from '../components/reports/ShopsTownshipsReport';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { SkeletonRows } from '../components/ui/EmptyState';
 import { StatTile } from '../components/ui/StatTile';
@@ -55,7 +57,9 @@ const PERIODS = [
 
 export default function Reports() {
   const today = useToday();
+  const { t } = useLocale();
   const { byId, loading: catalogueLoading } = useCatalogue();
+  const [tab, setTab] = useState('profit');
   const [days, setDays] = useState(90);
   const [vouchers, setVouchers] = useState([]);
   const [payments, setPayments] = useState([]);
@@ -146,7 +150,7 @@ export default function Reports() {
   return (
     <>
       <PageHeader
-        title="Reports"
+        title={t('reports.title')}
         subtitle={`${fmtDate(from)} — ${fmtDate(today)} · compared with the ${days} days before`}
         actions={
           <div className="flex gap-1 rounded-md border border-line-hair p-0.5 text-xs">
@@ -167,6 +171,28 @@ export default function Reports() {
         }
       />
 
+      <div className="mb-4 flex gap-1 rounded-md border border-line-hair p-0.5 text-xs">
+        {[
+          { key: 'profit', label: t('reports.tabProfit') },
+          { key: 'shops', label: t('reports.tabShops') },
+        ].map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => setTab(option.key)}
+            aria-pressed={tab === option.key}
+            className={`rounded px-3 py-1.5 font-medium transition ${
+              tab === option.key ? 'bg-ink text-plane' : 'text-ink-secondary hover:bg-raised'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'shops' ? (
+        <ShopsTownshipsReport vouchers={vouchers} from={from} to={today} loading={busy} />
+      ) : (
       <div className="space-y-4">
         <div className="grid gap-3 lg:grid-cols-[1.2fr_2fr]">
           {/* One hero per view: the number the owner opens this page for. */}
@@ -350,6 +376,7 @@ export default function Reports() {
           {busy ? <SkeletonRows rows={4} /> : <CommissionTable result={commissions} />}
         </Card>
       </div>
+      )}
     </>
   );
 }

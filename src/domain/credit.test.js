@@ -6,6 +6,7 @@ import {
   canIssueVoucher,
   evaluatePortfolio,
   evaluateShopCredit,
+  simplifiedAgeingBuckets,
 } from './credit';
 import { allocatePayment } from './allocation';
 
@@ -172,5 +173,46 @@ describe('evaluatePortfolio', () => {
     expect(totals.counts).toMatchObject({ LOCKED: 1, WATCH: 1, ACTIVE: 1 });
     expect(totals.buckets.OVERDUE_8_PLUS).toBe(400_000);
     expect(totals.buckets.APPROACHING).toBe(250_000);
+  });
+});
+
+describe('simplifiedAgeingBuckets — the 3-band chart regrouping', () => {
+  it('splits open balance into 0–7 / 8–14 / overdue, reusing ageVoucher’s day math', () => {
+    const shops = [{ id: 'a', name: 'A', township: 'Latha' }];
+    const vouchers = [
+      { ...voucher(3, 100_000), id: 'v1', shopId: 'a' }, // day 3 → 0-7
+      { ...voucher(10, 200_000), id: 'v2', shopId: 'a' }, // day 10 → 8-14
+      { ...voucher(20, 50_000), id: 'v3', shopId: 'a' }, // overdue
+    ];
+    const portfolio = evaluatePortfolio(shops, vouchers, TODAY);
+    const buckets = simplifiedAgeingBuckets(portfolio);
+
+    expect(buckets).toEqual([
+      { key: 'DAYS_0_7', tone: 'good', value: 100_000 },
+      { key: 'DAYS_8_14', tone: 'warning', value: 200_000 },
+      { key: 'OVERDUE', tone: 'critical', value: 50_000 },
+    ]);
+  });
+
+  it('agrees with evaluatePortfolio about who is overdue — never a second opinion', () => {
+    const shops = [{ id: 'a', name: 'A', township: 'Latha' }];
+    // Day 15 is overdue under ageVoucher (>14 days); the bucket split must
+    // land it in OVERDUE, not in an 8-14 band that would understate risk.
+    const vouchers = [{ ...voucher(15, 300_000), id: 'v1', shopId: 'a' }];
+    const portfolio = evaluatePortfolio(shops, vouchers, TODAY);
+    const buckets = simplifiedAgeingBuckets(portfolio);
+
+    expect(portfolio.totals.overdueAmount).toBe(300_000);
+    expect(buckets.find((b) => b.key === 'OVERDUE').value).toBe(300_000);
+    expect(buckets.find((b) => b.key === 'DAYS_8_14').value).toBe(0);
+  });
+
+  it('returns zeroed buckets rather than an empty array for a clean portfolio', () => {
+    const portfolio = evaluatePortfolio([], [], TODAY);
+    expect(simplifiedAgeingBuckets(portfolio)).toEqual([
+      { key: 'DAYS_0_7', tone: 'good', value: 0 },
+      { key: 'DAYS_8_14', tone: 'warning', value: 0 },
+      { key: 'OVERDUE', tone: 'critical', value: 0 },
+    ]);
   });
 });

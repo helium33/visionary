@@ -488,6 +488,7 @@ screens stay on live vouchers, because a rolled-up figure cannot be aged.
 | Requirement | Mechanism |
 |---|---|
 | Township analytics | `vouchers.township` denormalised + `shops.township` indexed |
+| District rollups (Shops & townships report) | No new field — `district` is never stored, always `getDistrictForTownship(vouchers.township)` (`src/constants/districts.js`), computed at read time in `src/domain/townshipAnalytics.js` |
 | Shop purchase history | `vouchers where shopId == X orderBy issueDate desc` |
 | 14-day due date | `vouchers.dueDate` written at creation |
 | Automated lock | Derived by `evaluateShopCredit()`; cached in `shops.credit.lockedUntilPaid`; enforced in rules + function |

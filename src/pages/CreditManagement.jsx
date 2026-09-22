@@ -5,16 +5,25 @@ import {
   Clock,
   Filter,
   Lock,
+  PieChart,
   Search,
   Wallet,
 } from 'lucide-react';
-import { CREDIT_STATUS, CREDIT_TERM_DAYS, GRACE_DAYS, collectionWorklist } from '../domain/credit';
+import {
+  CREDIT_STATUS,
+  GRACE_DAYS,
+  collectionWorklist,
+  simplifiedAgeingBuckets,
+} from '../domain/credit';
 import { TOWNSHIP_NAMES } from '../lib/constants';
 import { fmtDate } from '../lib/dates';
 import { fmtMMK } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 import { useCreditData } from '../hooks/useCreditData';
+import { useSalesAnalytics } from '../hooks/useSalesAnalytics';
 import { AgingBar } from '../components/charts/AgingBar';
+import { CollectedVsOutstandingChart, DebtAgeingChart } from '../components/credit/CreditCharts';
 import { CollectionTable, LockedBanner } from '../components/credit/CollectionTable';
 import { MasterPasswordModal } from '../components/credit/MasterPasswordModal';
 import { RecordPaymentModal } from '../components/credit/RecordPaymentModal';
@@ -24,16 +33,6 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { SkeletonRows } from '../components/ui/EmptyState';
 import { StatTile } from '../components/ui/StatTile';
 import { PageHeader } from '../components/layout/AppShell';
-
-const FILTERS = [
-  { key: 'WORKLIST', label: 'Needs action' },
-  { key: CREDIT_STATUS.LOCKED, label: 'Locked' },
-  // Only reachable when the business runs a grace period; with GRACE_DAYS = 0
-  // a shop goes straight from WATCH to LOCKED, so the tab would always be 0.
-  ...(GRACE_DAYS > 0 ? [{ key: CREDIT_STATUS.OVERDUE, label: 'Overdue' }] : []),
-  { key: CREDIT_STATUS.WATCH, label: 'Due soon' },
-  { key: 'ALL', label: 'All shops' },
-];
 
 /**
  * ===========================================================================
@@ -48,15 +47,39 @@ const FILTERS = [
  *   • Locked shops are surfaced first, because a locked shop is a sale the
  *     reps cannot make today.
  *   • Every action a collector needs — chase, collect, release — is on the row.
+ *
+ * Two charts sit beneath the KPI tiles: a Collected-vs-Outstanding donut and a
+ * 0–7 / 8–14 / overdue debt-ageing bar, both Recharts, both reading the exact
+ * same `portfolio` this whole page derives from — so a number a collector
+ * checks on the table always matches what the chart above it shows. The
+ * existing four-band `AgingBar` stays untouched beside them: it answers "how
+ * much is in each precise bucket", the new bar answers "how much is close to
+ * the wall" at a glance. Different questions, same source of truth.
  */
 export default function CreditManagement() {
   const { user, can } = useAuth();
+  const { t } = useLocale();
   const { portfolio, vouchersByShop, loading, today } = useCreditData();
+  // Collected is real cash received (payments), not a slice of open debt —
+  // `totals.currentAmount` from the portfolio is still-unpaid balance inside
+  // the term, which is a different thing and would mislabel the pie chart.
+  // 90 days matches how "Cash collected" is already defined on the Dashboard.
+  const { collected: cashCollected, loading: collectedLoading } = useSalesAnalytics({ days: 90 });
   const [filter, setFilter] = useState('WORKLIST');
   const [township, setTownship] = useState('ALL');
   const [search, setSearch] = useState('');
   const [selection, setSelection] = useState(null); // { shop, state }
   const [dialog, setDialog] = useState(null); // 'pay' | 'statement' | 'override' | 'shop'
+
+  const FILTERS = [
+    { key: 'WORKLIST', label: t('credit.needsAction') },
+    { key: CREDIT_STATUS.LOCKED, label: t('credit.lockedShops') },
+    // Only reachable when the business runs a grace period; with GRACE_DAYS = 0
+    // a shop goes straight from WATCH to LOCKED, so the tab would always be 0.
+    ...(GRACE_DAYS > 0 ? [{ key: CREDIT_STATUS.OVERDUE, label: t('credit.overduePastTerm') }] : []),
+    { key: CREDIT_STATUS.WATCH, label: t('credit.dueSoon') },
+    { key: 'ALL', label: t('credit.allShops') },
+  ];
 
   const canCollect = can('payment:create') || can('payment:collect');
   const canOverride = user?.role === 'ADMIN';
@@ -87,6 +110,7 @@ export default function CreditManagement() {
   const lockedRows = portfolio.rows.filter(({ state }) => state.status === CREDIT_STATUS.LOCKED);
   const lockedAmount = lockedRows.reduce((sum, { state }) => sum + state.overdueAmount, 0);
   const watchRows = portfolio.rows.filter(({ state }) => state.status === CREDIT_STATUS.WATCH);
+  const debtBuckets = useMemo(() => simplifiedAgeingBuckets(portfolio), [portfolio]);
 
   const open = (kind) => (shop, state) => {
     setSelection({ shop, state });
@@ -104,10 +128,8 @@ export default function CreditManagement() {
   return (
     <>
       <PageHeader
-        title="Credit control"
-        subtitle={`${CREDIT_TERM_DAYS}-day terms · evaluated ${fmtDate(today)} · ${
-          totals.shopsWithDebt
-        } shops carrying balances`}
+        title={t('credit.title')}
+        subtitle={t('credit.subtitle', { date: fmtDate(today), count: totals.shopsWithDebt })}
       />
 
       <div className="space-y-4">
@@ -119,45 +141,61 @@ export default function CreditManagement() {
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
-            label="Total outstanding"
+            label={t('credit.totalOutstanding')}
             value={totals.outstanding}
             icon={Wallet}
-            footnote={`across ${totals.shopsWithDebt} shops`}
+            footnote={t('credit.acrossShops', { count: totals.shopsWithDebt })}
           />
           <StatTile
-            label="Overdue (past 14 days)"
+            label={t('credit.overduePastTerm')}
             value={totals.overdueAmount}
             icon={AlertTriangle}
             tone={totals.overdueAmount > 0 ? 'critical' : 'neutral'}
             footnote={
               totals.outstanding
-                ? `${((totals.overdueAmount / totals.outstanding) * 100).toFixed(0)}% of receivables`
+                ? `${((totals.overdueAmount / totals.outstanding) * 100).toFixed(0)}${t('credit.ofReceivables')}`
                 : 'nothing past term'
             }
           />
           <StatTile
-            label="Locked shops"
+            label={t('credit.lockedShops')}
             value={totals.counts.LOCKED}
             unit=""
             raw
             icon={Lock}
             tone={totals.counts.LOCKED > 0 ? 'critical' : 'neutral'}
-            footnote="new vouchers blocked"
+            footnote={t('credit.newVouchersBlocked')}
           />
           <StatTile
-            label="Due within 2 days"
+            label={t('credit.dueWithin2')}
             value={watchRows.reduce((sum, { state }) => sum + state.outstanding, 0)}
             icon={Clock}
-            footnote={`${watchRows.length} shops at day 12–14`}
+            footnote={t('credit.shopsAtDay', { count: watchRows.length })}
           />
         </div>
 
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader title={t('credit.collectionSplit')} subtitle={t('credit.collectionSplitSub')} icon={PieChart} />
+            <CardBody>
+              {loading || collectedLoading ? (
+                <SkeletonRows rows={4} />
+              ) : (
+                <CollectedVsOutstandingChart collected={cashCollected} outstanding={totals.outstanding} />
+              )}
+            </CardBody>
+          </Card>
+
+          <Card>
+            <CardHeader title={t('credit.debtAgeing')} subtitle={t('credit.debtAgeingSub')} icon={Clock} />
+            <CardBody>
+              {loading ? <SkeletonRows rows={4} /> : <DebtAgeingChart buckets={debtBuckets} />}
+            </CardBody>
+          </Card>
+        </div>
+
         <Card>
-          <CardHeader
-            title="Receivables ageing"
-            subtitle="Every open voucher placed against its 14-day term"
-            icon={Banknote}
-          />
+          <CardHeader title={t('credit.ageingTitle')} subtitle={t('credit.ageingSub')} icon={Banknote} />
           <CardBody>
             <AgingBar buckets={totals.buckets} total={totals.outstanding} />
           </CardBody>
@@ -165,13 +203,13 @@ export default function CreditManagement() {
 
         <Card>
           <CardHeader
-            title="Collection worklist"
-            subtitle="Worst first — locked shops, then by days past term"
+            title={t('credit.worklistTitle')}
+            subtitle={t('credit.worklistSub')}
             icon={Filter}
             action={
               <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                 <label className="relative">
-                  <span className="sr-only">Search shops</span>
+                  <span className="sr-only">{t('credit.searchShop')}</span>
                   <Search
                     size={13}
                     className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-muted"
@@ -180,17 +218,17 @@ export default function CreditManagement() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search shop"
+                    placeholder={t('credit.searchShop')}
                     className="h-7 w-full min-w-[9rem] rounded border border-line-hair bg-surface pl-7 pr-2 text-xs text-ink outline-none sm:w-36"
                   />
                 </label>
                 <select
-                  aria-label="Filter by township"
+                  aria-label={t('common.township')}
                   value={township}
                   onChange={(e) => setTownship(e.target.value)}
                   className="h-7 rounded border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
                 >
-                  <option value="ALL">All townships</option>
+                  <option value="ALL">{t('common.allTownships')}</option>
                   {TOWNSHIP_NAMES.map((name) => (
                     <option key={name} value={name}>
                       {name}
@@ -244,8 +282,11 @@ export default function CreditManagement() {
 
           {!loading && rows.length > 0 ? (
             <p className="border-t border-line-hair px-4 py-2 text-2xs text-ink-secondary">
-              Showing {rows.length} of {portfolio.rows.length} shops · K{' '}
-              {fmtMMK(rows.reduce((sum, r) => sum + r.state.outstanding, 0))} outstanding in this view
+              {t('credit.showing', {
+                shown: rows.length,
+                total: portfolio.rows.length,
+                amount: fmtMMK(rows.reduce((sum, r) => sum + r.state.outstanding, 0)),
+              })}
             </p>
           ) : null}
         </Card>

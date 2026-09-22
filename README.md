@@ -19,9 +19,11 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Grid fast entry + vouchers** | Complete — matrix entry, tiered pricing, auto-bundling, credit gate, A4/A5/thermal print, chat share |
 | **Inventory** | Complete — stock matrix, EAN-13/QR label printing, dead-stock and low-stock reports |
 | **Purchasing & landed cost** | Complete — PO tracking, charge apportionment, receiving with cost write-back, expenses |
-| **Reports** | Complete — net profit bridge, model profitability, rep commissions |
+| **Reports** | Complete — net profit bridge, model profitability, rep commissions, **+ Shops & townships analytics** |
 | **Car stock** | Complete — load a bag, reconcile stock, cash and debt on return |
 | **Users & audit** | Complete — role assignment, an append-only audit log, master-password rotation |
+| **Bilingual UI (EN/MM)** | Nav, header, Dashboard, Credit Management and Reports — a language toggle, placeholder Myanmar copy |
+| **Yangon district mapping** | Complete — 4 districts ↔ townships, auto-derived, feeds the district/township charts |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
 
 ## Running it
@@ -72,7 +74,8 @@ visionary/
     │   ├── commission.js          Rep volume plus the on-time collection bonus
     │   ├── carStock.js            Trip reconciliation: stock, cash and debt
     │   ├── permissions.js         Renders the role → capability matrix from one source list
-    │   └── audit.js                Turns raw audit entries into a readable, filterable log
+    │   ├── audit.js                Turns raw audit entries into a readable, filterable log
+    │   └── townshipAnalytics.js   District/township/shop rollups for the Reports tab
     │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
     │   ├── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
     │   ├── barcode.test.js        Symbol encoding against the GS1 worked example
@@ -82,7 +85,15 @@ visionary/
     │   ├── profit.test.js         Frozen COGS, the bridge, commission split
     │   ├── carStock.test.js       Bag arithmetic, cash vs phone, settlement
     │   ├── permissions.test.js    The matrix never invents or drops a capability
-    │   └── audit.test.js          Human-readable descriptions, filtering, sort order
+    │   ├── audit.test.js          Human-readable descriptions, filtering, sort order
+    │   └── townshipAnalytics.test.js
+    ├── i18n/                     Hand-rolled EN/MM dictionary — see "Bilingual support" below
+    │   ├── dictionary.js           Nested {en, mm} strings, dot-path keys
+    │   ├── translate.js            Lookup + {placeholder} interpolation, never throws
+    │   └── translate.test.js
+    ├── constants/
+    │   ├── districts.js            Yangon district ↔ township mapping — see below
+    │   └── districts.test.js
     ├── services/                ← Side effects. Everything that writes.
     │   ├── dataSource.js          One subscription layer over Firestore or demo data
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
@@ -95,18 +106,20 @@ visionary/
     │   ├── useSalesAnalytics.js   Township/shop rankings, weekly series
     │   ├── useOnlineStatus.js
     │   └── useToday.js            Ticking "today" so ageing rolls over at midnight
-    ├── context/AuthContext.jsx    Auth + role, with a demo-mode role switcher
+    ├── context/
+    │   ├── AuthContext.jsx         Auth + role, with a demo-mode role switcher
+    │   └── LocaleContext.jsx       Current locale + t(), persisted to localStorage
     ├── components/
     │   ├── ui/                    Card, Button, Modal, StatTile, StatusPill, Toast
-    │   ├── charts/                BarList, AgingBar, TrendChart, shared tooltip
-    │   ├── credit/                DueMeter, CollectionTable, and the four dialogs
+    │   ├── charts/                BarList, AgingBar, TrendChart, shared tooltip, rechartsTheme (CSS-var Recharts theme)
+    │   ├── credit/                DueMeter, CollectionTable, the four dialogs, CreditCharts (collected/outstanding donut, debt-ageing bar)
     │   ├── voucher/               ModelPicker, GridFastEntry, lines, totals, print
     │   ├── inventory/             StockMatrix, barcode/QR SVG, label sheet, alert tables
     │   ├── purchasing/            PoTable, landed-cost breakdown, receiving, expenses
-    │   ├── reports/               Commission table with the on-time meter
+    │   ├── reports/               Commission table; TownshipCharts + ShopsTownshipsReport (district/township/top-shop charts)
     │   ├── carstock/              Trip reconciliation panel
     │   └── admin/                 Users table, permission matrix, audit log, password rotation
-    │   └── layout/                AppShell, SyncBadge
+    │   └── layout/                AppShell, SyncBadge, LanguageToggle
     ├── pages/
     │   ├── Dashboard.jsx
     │   ├── CreditManagement.jsx
@@ -300,6 +313,67 @@ Payments allocate **oldest voucher first**, because the oldest is the one about 
 lock. The allocation is computed by the same pure function that the write uses, so the preview
 the accountant approves is exactly what gets committed — offline included.
 
+## Bilingual support (EN/MM)
+
+Hand-rolled, not react-i18next. `src/i18n/dictionary.js` is a plain nested `{en, mm}` object
+keyed by dot-path (`credit.totalOutstanding`), looked up and `{placeholder}`-interpolated by
+`src/i18n/translate.js`, with a locale → English → raw-key fallback that never throws. The whole
+thing is a few KB; this app has no plural rules or per-locale number formats to justify shipping
+`i18next` + `react-i18next` + a language detector. Coverage is deliberately scoped to what was
+asked for — nav, header, Dashboard, Credit Management, Reports — not the rest of the app; every
+other page keeps its English copy until a namespace is added for it. The Myanmar column is real,
+sensible placeholder text the project owner asked to refine themselves, not filler.
+
+`LocaleProvider` (`src/context/LocaleContext.jsx`) holds the current locale, persists it to
+`localStorage`, and sets `document.documentElement.lang` plus a `body.mm-locale` class so
+`index.css` can swap in a Myanmar-capable font stack. `LanguageToggle` is mounted twice — once in
+the sticky mobile header, once inside the drawer — so it is reachable whether or not the drawer
+is open. (An earlier version rendered only the drawer copy on mobile, so a phone user had to open
+the menu just to switch languages — caught and fixed while browser-verifying the Reports tab,
+not while building the toggle itself.)
+
+**A Recharts pitfall worth recording.** The Credit Management donut originally fed the translated
+string `t('credit.collected')` into the Pie's `nameKey`. Recharts uses that field as a stable
+identity to match sectors across renders for its enter/update transitions — a value that changes
+on every locale toggle gives it nothing stable to match, so it silently re-derived sector *and*
+legend order from scratch each time, occasionally swapping which colour meant "Collected" and
+which meant "Outstanding" with no console error and nothing visibly broken except the mislabel
+itself. The fix, applied throughout `CreditCharts.jsx` and `TownshipCharts.jsx`: identity fields
+a chart library uses for reconciliation (`nameKey`, a `dataKey` matched across renders) stay
+locale-invariant English/code strings, always; translated text only ever appears inside a label
+or tooltip formatter, or a hand-rolled legend built from the app's own data — never in a field a
+chart library uses to recognise "the same slice as last render."
+
+## Shop & township analytics
+
+Reports gained a second tab — Shops & townships — built on `src/domain/townshipAnalytics.js`,
+pure rollups (`districtSales`, `townshipSales`, `topShops`) that share the exact revenue
+definition the Profit tab already uses (`isRevenueVoucher` from `profit.js`: no consignment
+stock, no voided vouchers), so the two tabs can never disagree about what a period's revenue was.
+
+**District is derived, never stored.** `src/constants/districts.js` maps Yangon's ~28
+wholesale-relevant townships into the four administrative districts, each with its own Burmese
+name. A shop's district is always `getDistrictForTownship(shop.township)`, computed at read
+time — the same rule the app already applies to credit status and dead stock. Re-mapping a
+township (the three Dagon Myothit "new town" satellites are genuinely cited differently across
+sources) is a one-line edit that reclassifies every past voucher the next time a report runs;
+nothing to migrate.
+
+**Revenue and volume are two charts, not one.** Kyat and pieces-sold are different scales, and
+this app's charts never put two different-scale measures on one y-axis, so "revenue and volume
+across the four districts" became two small-multiple bar charts side by side rather than one
+dual-axis chart. Township and shop charts run horizontal instead — a district holds up to 13
+townships and shop names run long, and a vertical axis either rotates the labels or truncates
+them; horizontal bars give a long name the width it needs regardless of screen size. The
+leaderboard follows the same discipline as the district charts: revenue sets the bar length,
+order count is printed as a direct label at the end of the bar rather than riding a second axis.
+
+Two real bugs turned up while wiring this tab in and browser-verifying it, both fixed alongside
+the new charts rather than filed for later: `Reports.jsx` was fully built and linked from the
+sidebar but had no matching `<Route>` in `App.jsx`, so the link 404'd; and the district charts'
+own X-axis silently dropped two of the four labels on a phone-width screen until Recharts was
+told `interval={0}` and given a compact "North"/"South"/"East"/"West" tick form.
+
 ---
 
 ## Design notes
@@ -309,3 +383,9 @@ fixed order and checked for colour-vision separation, and the four status colour
 (good/warning/serious/critical) are reserved — they never double as a series colour. Every
 status is paired with an icon and a word, so nothing depends on colour alone. Light and dark
 are both explicit token sets in `src/index.css`; components carry no `dark:` variants.
+
+The same palette drives Recharts too (`src/components/charts/rechartsTheme.js`): every colour
+handed to a `<Bar>`/`<Pie>`/`<Cell>` is a CSS custom-property string, e.g. `'var(--status-good)'`,
+which SVG resolves exactly like any other presentation attribute. A Recharts chart repaints on
+the light/dark toggle with no theme prop threaded through and no chart-specific dark-mode branch
+to keep in sync with the hand-rolled charts beside it.

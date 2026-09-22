@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { LocaleProvider } from './context/LocaleContext';
 import { ToastProvider } from './components/ui/Toast';
 import './index.css';
 
@@ -26,11 +27,13 @@ if (!isStaticPreview) {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <Router>
-      <AuthProvider>
-        <ToastProvider>
-          <App />
-        </ToastProvider>
-      </AuthProvider>
+      <LocaleProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </AuthProvider>
+      </LocaleProvider>
     </Router>
   </StrictMode>,
 );

@@ -1,5 +1,6 @@
 import { Cloud, CloudOff, RefreshCw } from 'lucide-react';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
+import { useLocale } from '../../context/LocaleContext';
 
 /**
  * Offline state is a first-class part of the UI, not an error.
@@ -11,13 +12,14 @@ import { useOnlineStatus } from '../../hooks/useOnlineStatus';
  */
 export function SyncBadge({ sync }) {
   const online = useOnlineStatus();
+  const { t } = useLocale();
   const pending = sync?.pendingWrites;
 
   const [Icon, label, tone] = !online
-    ? [CloudOff, 'Offline — saving locally', 'bg-wash-warning text-ink']
+    ? [CloudOff, t('header.offline'), 'bg-wash-warning text-ink']
     : pending
-      ? [RefreshCw, 'Syncing…', 'bg-wash-accent text-ink']
-      : [Cloud, 'Synced', 'bg-raised text-ink-secondary'];
+      ? [RefreshCw, t('header.syncing'), 'bg-wash-accent text-ink']
+      : [Cloud, t('header.synced'), 'bg-raised text-ink-secondary'];
 
   return (
     <span

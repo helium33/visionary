@@ -57,6 +57,12 @@ export default defineConfig({
         manualChunks: {
           firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions'],
           vendor: ['react', 'react-dom', 'react-router-dom'],
+          // Recharts (plus its d3-* dependencies) is the single biggest chunk
+          // in the app by a wide margin. Splitting it out means a rep who
+          // never opens Credit Management or Reports still gets the same fast
+          // first load as before Recharts existed — the app shell, vouchers
+          // and inventory never touch this chunk at all.
+          charts: ['recharts'],
         },
       },
     },

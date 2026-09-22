@@ -147,6 +147,13 @@
     font-family: 'Padauk', 'Myanmar Text', 'Noto Sans Myanmar', system-ui, sans-serif;
   }
 
+  /* Whole-app Myanmar locale: LocaleContext toggles this on <body> so every
+     translated string gets the Myanmar font stack, not only the elements a
+     developer remembered to tag with .mm individually. */
+  body.mm-locale {
+    font-family: 'Padauk', 'Myanmar Text', 'Noto Sans Myanmar', system-ui, sans-serif;
+  }
+
   :focus-visible {
     outline: 2px solid var(--series-1);
     outline-offset: 2px;

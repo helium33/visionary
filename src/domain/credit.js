@@ -273,3 +273,31 @@ export function collectionWorklist(portfolio) {
     ({ state }) => state.status !== CREDIT_STATUS.ACTIVE && state.outstanding > 0,
   );
 }
+
+/**
+ * The same open-voucher ageing the worklist and the 4-bucket StackedBar
+ * already use (`ageVoucher`), regrouped into the coarser 3-band split a quick
+ * "how much of our debt is close to the wall" chart wants: 0–7 days into the
+ * term, 8–14, and anything already past it. This is a presentation-layer
+ * regrouping, not a second ageing rule — the day math is `ageVoucher`'s, so
+ * this can never disagree with the lock logic or the detailed ageing bar
+ * about which bucket a voucher falls into.
+ */
+export const DEBT_AGEING_BUCKETS = [
+  { key: 'DAYS_0_7', tone: 'good' },
+  { key: 'DAYS_8_14', tone: 'warning' },
+  { key: 'OVERDUE', tone: 'critical' },
+];
+
+export function simplifiedAgeingBuckets(portfolio) {
+  const totals = { DAYS_0_7: 0, DAYS_8_14: 0, OVERDUE: 0 };
+
+  for (const { state } of portfolio.rows) {
+    for (const { voucher, aging } of state.agedVouchers) {
+      const bucket = aging.isOverdue ? 'OVERDUE' : aging.daysOutstanding >= 8 ? 'DAYS_8_14' : 'DAYS_0_7';
+      totals[bucket] += Number(voucher.balanceDue) || 0;
+    }
+  }
+
+  return DEBT_AGEING_BUCKETS.map((bucket) => ({ ...bucket, value: totals[bucket.key] }));
+}

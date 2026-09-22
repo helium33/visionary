@@ -41,6 +41,7 @@ function AuthedApp() {
         <Route path="/credit" element={<CreditManagement />} />
         <Route path="/vouchers" element={<VoucherList />} />
         <Route path="/vouchers/new" element={<VoucherCreate />} />
+        <Route path="/reports" element={<Reports />} />
         <Route
           path="/shops/*"
           element={

@@ -1,28 +1,16 @@
-/** Yangon townships that carry optical-shop clusters, grouped by district. */
-export const YANGON_TOWNSHIPS = [
-  { code: 'LAT', name: 'Latha', district: 'Western' },
-  { code: 'PAZ', name: 'Pabedan', district: 'Western' },
-  { code: 'KTD', name: 'Kyauktada', district: 'Western' },
-  { code: 'LNM', name: 'Lanmadaw', district: 'Western' },
-  { code: 'AHL', name: 'Ahlone', district: 'Western' },
-  { code: 'KMY', name: 'Kamayut', district: 'Western' },
-  { code: 'SCG', name: 'Sanchaung', district: 'Western' },
-  { code: 'HLG', name: 'Hlaing', district: 'Western' },
-  { code: 'MTN', name: 'Mingala Taung Nyunt', district: 'Eastern' },
-  { code: 'BTG', name: 'Botataung', district: 'Eastern' },
-  { code: 'TMW', name: 'Tamwe', district: 'Eastern' },
-  { code: 'TKT', name: 'Thingangyun', district: 'Eastern' },
-  { code: 'SOK', name: 'South Okkalapa', district: 'Eastern' },
-  { code: 'NOK', name: 'North Okkalapa', district: 'Eastern' },
-  { code: 'DGN', name: 'Dagon', district: 'Southern' },
-  { code: 'THK', name: 'Thaketa', district: 'Southern' },
-  { code: 'DLA', name: 'Dala', district: 'Southern' },
-  { code: 'INS', name: 'Insein', district: 'Northern' },
-  { code: 'MYG', name: 'Mayangone', district: 'Northern' },
-  { code: 'SPT', name: 'Shwe Pyi Thar', district: 'Northern' },
-];
+/**
+ * Yangon townships that carry optical-shop clusters. The canonical
+ * district ↔ township mapping lives in `src/constants/districts.js` — this
+ * is a thin, alphabetised view over it kept here only because a handful of
+ * existing screens (the township filter dropdown, mainly) already import a
+ * flat name list from `lib/constants`. Nothing recomputes the mapping; this
+ * re-exports it so there is exactly one source of truth for "what district is
+ * this township in", not two lists that can drift apart.
+ */
+export { ALL_TOWNSHIPS as TOWNSHIP_NAMES, getDistrictForTownship } from '../constants/districts';
+import { ALL_TOWNSHIPS } from '../constants/districts';
 
-export const TOWNSHIP_NAMES = YANGON_TOWNSHIPS.map((t) => t.name);
+export const YANGON_TOWNSHIPS = ALL_TOWNSHIPS;
 
 export const ROLES = {
   ADMIN: 'ADMIN',
