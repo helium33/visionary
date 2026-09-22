@@ -58,8 +58,18 @@ if (!isDemoMode) {
 
   auth = getAuth(app);
   // Keep the rep signed in across app restarts — a re-login prompt in the field
-  // with no connectivity would strand them.
-  setPersistence(auth, browserLocalPersistence).catch(() => {});
+  // with no connectivity would strand them. Wrapped in try/catch, not just a
+  // trailing .catch(): a storage-restricted host (a sandboxed preview iframe,
+  // a private window) can make Firebase's own persistence-manager init throw
+  // synchronously before it ever returns a promise, which .catch() alone
+  // can't intercept — and this runs at module load, so an uncaught throw
+  // here would blank the whole app before React ever gets to render.
+  try {
+    setPersistence(auth, browserLocalPersistence).catch(() => {});
+  } catch {
+    // No durable session across restarts in this environment — the app still
+    // works for the current tab, just without that guarantee.
+  }
 
   if (import.meta.env.VITE_USE_FIREBASE_EMULATOR === 'true') {
     connectFirestoreEmulator(db, '127.0.0.1', 8080);

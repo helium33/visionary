@@ -24,29 +24,43 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (isDemoMode) return undefined;
-    return onAuthStateChanged(auth, async (fbUser) => {
-      if (!fbUser) {
-        setFirebaseUser(null);
+    // try/catch, not just letting it propagate: registering this listener is
+    // when Firebase Auth reads its persisted session, which can throw
+    // synchronously on a host that restricts storage (a sandboxed preview
+    // iframe, a private window) rather than rejecting a promise. AuthProvider
+    // wraps the entire app, so an uncaught throw here — not just on the login
+    // page — would blank every screen, every time, on such a host.
+    try {
+      return onAuthStateChanged(auth, async (fbUser) => {
+        if (!fbUser) {
+          setFirebaseUser(null);
+          setLoading(false);
+          return;
+        }
+        // The role lives on the user document, mirrored into a custom claim by a
+        // Cloud Function — the claim is what Firestore rules read, the document
+        // is what the UI reads. Falling back to the token keeps the app usable
+        // if the document read is still cold in the offline cache.
+        const snap = await getDoc(doc(db, COL.users, fbUser.uid));
+        const claims = (await fbUser.getIdTokenResult()).claims;
+        setFirebaseUser({
+          uid: fbUser.uid,
+          email: fbUser.email,
+          name: snap.data()?.name ?? fbUser.displayName ?? fbUser.email,
+          role: snap.data()?.role ?? claims.role ?? 'SALES',
+          active: snap.data()?.active ?? true,
+          townships: snap.data()?.townships ?? [],
+          repCode: snap.data()?.repCode ?? null,
+        });
         setLoading(false);
-        return;
-      }
-      // The role lives on the user document, mirrored into a custom claim by a
-      // Cloud Function — the claim is what Firestore rules read, the document
-      // is what the UI reads. Falling back to the token keeps the app usable
-      // if the document read is still cold in the offline cache.
-      const snap = await getDoc(doc(db, COL.users, fbUser.uid));
-      const claims = (await fbUser.getIdTokenResult()).claims;
-      setFirebaseUser({
-        uid: fbUser.uid,
-        email: fbUser.email,
-        name: snap.data()?.name ?? fbUser.displayName ?? fbUser.email,
-        role: snap.data()?.role ?? claims.role ?? 'SALES',
-        active: snap.data()?.active ?? true,
-        townships: snap.data()?.townships ?? [],
-        repCode: snap.data()?.repCode ?? null,
       });
+    } catch {
+      // No session to restore in this environment. Stop showing the loading
+      // state so the app settles on "signed out" (the login screen) instead
+      // of spinning forever with no listener ever going to call setLoading.
       setLoading(false);
-    });
+      return undefined;
+    }
   }, []);
 
   const demoUser = isDemoMode

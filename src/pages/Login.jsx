@@ -96,8 +96,24 @@ export default function Login() {
   // but only this call surfaces the specific error if the redirect itself
   // failed (e.g. the domain isn't authorised) rather than leaving the
   // person on a blank sign-in form with no explanation.
+  //
+  // Wrapped in try/catch, not just a trailing .catch(): this touches
+  // Firebase's storage-backed persistence manager the moment the page
+  // loads, and a host that restricts storage (a sandboxed preview iframe,
+  // a private window) can make that throw synchronously before a promise
+  // ever exists to attach .catch() to. Uncaught, that throw happens inside
+  // the first effect run on this page's only route, with no error boundary
+  // above it — so it doesn't fail quietly, it blanks the entire page. No
+  // redirect is the overwhelmingly common case (nearly every visit is a
+  // fresh sign-in attempt, not a return trip), so a failure checking for
+  // one is silently ignored here rather than shown as an error.
   useEffect(() => {
-    getRedirectResult(auth).catch((err) => setError(loginErrorMessage(err, t)));
+    try {
+      getRedirectResult(auth).catch((err) => setError(loginErrorMessage(err, t)));
+    } catch {
+      // Nothing to recover: no redirect result was retrievable, same as if
+      // there simply wasn't one pending.
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
