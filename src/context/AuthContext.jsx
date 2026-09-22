@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { COL, auth, db, isDemoMode } from '../lib/firebase';
@@ -37,22 +37,51 @@ export function AuthProvider({ children }) {
           setLoading(false);
           return;
         }
-        // The role lives on the user document, mirrored into a custom claim by a
-        // Cloud Function — the claim is what Firestore rules read, the document
-        // is what the UI reads. Falling back to the token keeps the app usable
-        // if the document read is still cold in the offline cache.
-        const snap = await getDoc(doc(db, COL.users, fbUser.uid));
-        const claims = (await fbUser.getIdTokenResult()).claims;
+        // The role comes from the token's custom claim because that is what
+        // firestore.rules check — a role read from users/{uid} could disagree
+        // with the rules and leave every screen loading into permission errors.
+        // No claim means no access yet (role null), never a guessed role. A
+        // token issued before an admin granted the role doesn't carry it, so
+        // refresh once before concluding there is none.
+        let { claims } = await fbUser.getIdTokenResult();
+        if (!claims.role) {
+          try {
+            ({ claims } = await fbUser.getIdTokenResult(true));
+          } catch {
+            // Offline: keep the cached token's claims.
+          }
+        }
         setFirebaseUser({
           uid: fbUser.uid,
           email: fbUser.email,
-          name: snap.data()?.name ?? fbUser.displayName ?? fbUser.email,
-          role: snap.data()?.role ?? claims.role ?? 'SALES',
-          active: snap.data()?.active ?? true,
-          townships: snap.data()?.townships ?? [],
-          repCode: snap.data()?.repCode ?? null,
+          name: fbUser.displayName ?? fbUser.email,
+          role: claims.role ?? null,
+          active: true,
+          townships: [],
+          repCode: null,
         });
         setLoading(false);
+
+        // Profile details live on users/{uid}. Read after the first render,
+        // not before it — the role that gates everything is already known,
+        // and on a slow connection this read alone can take seconds.
+        getDoc(doc(db, COL.users, fbUser.uid))
+          .then((snap) => {
+            const data = snap.data();
+            if (!data) return;
+            setFirebaseUser((current) =>
+              current?.uid === fbUser.uid
+                ? {
+                    ...current,
+                    name: data.name ?? current.name,
+                    active: data.active ?? true,
+                    townships: data.townships ?? [],
+                    repCode: data.repCode ?? null,
+                  }
+                : current,
+            );
+          })
+          .catch(() => {});
       });
     } catch {
       // No session to restore in this environment. Stop showing the loading
@@ -68,6 +97,16 @@ export function AuthProvider({ children }) {
     : null;
   const user = isDemoMode ? demoUser : firebaseUser;
 
+  /** Re-reads the role after an admin grants one, without signing out. */
+  const refreshAccess = useCallback(async () => {
+    const fbUser = auth?.currentUser;
+    if (!fbUser) return null;
+    const { claims } = await fbUser.getIdTokenResult(true);
+    const role = claims.role ?? null;
+    setFirebaseUser((current) => (current ? { ...current, role } : current));
+    return role;
+  }, []);
+
   const value = useMemo(
     () => ({
       user,
@@ -78,8 +117,9 @@ export function AuthProvider({ children }) {
       switchDemoUser: (id) => setDemoUserId(id),
       can: (permission) => can(user?.role, permission),
       logout: () => (isDemoMode ? setDemoUserId(demoUsersSeed[0]?.id ?? null) : signOut(auth)),
+      refreshAccess,
     }),
-    [user, loading, demoRoster],
+    [user, loading, demoRoster, refreshAccess],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

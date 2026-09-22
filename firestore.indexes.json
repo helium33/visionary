@@ -175,52 +175,6 @@
           "order": "DESCENDING"
         }
       ]
-    },
-    {
-      "collectionGroup": "products",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "active",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "modelNo",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "products",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "active",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "category",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "modelNo",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "carTrips",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "repId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "openedAt",
-          "order": "DESCENDING"
-        }
-      ]
     }
   ],
   "fieldOverrides": [

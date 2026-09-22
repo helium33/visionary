@@ -5,7 +5,7 @@ import App from './App';
 import { AuthProvider } from './context/AuthContext';
 import { LocaleProvider } from './context/LocaleContext';
 import { ThemeProvider } from './context/ThemeContext';
-import { ToastProvider } from './components/ui/Toast';
+import { AppToaster } from './components/ui/Toast';
 import './index.css';
 
 /**
@@ -31,9 +31,8 @@ createRoot(document.getElementById('root')).render(
       <ThemeProvider>
         <LocaleProvider>
           <AuthProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
+            <App />
+            <AppToaster />
           </AuthProvider>
         </LocaleProvider>
       </ThemeProvider>

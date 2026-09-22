@@ -51,8 +51,11 @@ export function BrandLogo({ compact = false, className = '' }) {
   );
 }
 
-/** The "B": two lens rings on a vertical spine, tangent where the spine ends. */
-function GlassesMark({ className = '' }) {
+/**
+ * The "B": two lens rings on a vertical spine, tangent where the spine ends.
+ * index.html's pre-JS splash inlines this same SVG — keep the two in step.
+ */
+export function GlassesMark({ className = '' }) {
   return (
     <svg viewBox="0 0 34 56" className={className} fill="none" aria-hidden="true">
       <rect x="3" y="3" width="5" height="50" rx="2.5" fill="currentColor" />

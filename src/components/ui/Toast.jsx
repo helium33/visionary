@@ -1,70 +1,95 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Info, X } from 'lucide-react';
+import { useEffect } from 'react';
+import toast, { ToastBar, Toaster } from 'react-hot-toast';
+import { Info, X } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
+import { setListenerErrorReporter } from '../../services/dataSource';
 
-const ToastContext = createContext(null);
+const DURATION = { success: 3500, error: 6000, info: 4200 };
 
-const ICONS = { success: CheckCircle2, error: AlertTriangle, info: Info };
-const TONES = {
-  success: 'border-status-good/40 text-status-good',
-  error: 'border-status-critical/40 text-status-critical',
-  info: 'border-line-hair text-ink',
+const LISTENER_ERROR_KEYS = {
+  'permission-denied': 'errors.permission',
+  'failed-precondition': 'errors.index',
+  unavailable: 'errors.unavailable',
 };
 
-export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-
-  const dismiss = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
-
-  const push = useCallback(
-    (message, { tone = 'info', duration = 4200 } = {}) => {
-      const id = Math.random().toString(36).slice(2);
-      setToasts((prev) => [...prev, { id, message, tone }]);
-      if (duration) setTimeout(() => dismiss(id), duration);
-      return id;
-    },
-    [dismiss],
-  );
-
-  const value = useMemo(() => ({ push, dismiss }), [push, dismiss]);
-
-  return (
-    <ToastContext.Provider value={value}>
-      {children}
-      <div
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4"
-        role="status"
-        aria-live="polite"
-      >
-        {toasts.map((toast) => {
-          const Icon = ICONS[toast.tone];
-          return (
-            <div
-              key={toast.id}
-              className={`pointer-events-auto flex w-full max-w-md items-start gap-2 rounded-card
-                border bg-surface px-3 py-2.5 text-sm shadow-lg ${TONES[toast.tone]}`}
-            >
-              <Icon size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-              <span className="flex-1 whitespace-pre-line text-ink">{toast.message}</span>
-              <button
-                type="button"
-                onClick={() => dismiss(toast.id)}
-                aria-label="Dismiss"
-                className="text-ink-muted hover:text-ink"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    </ToastContext.Provider>
-  );
-}
+/**
+ * `push(message, { tone, duration, id })` — tone is success | error | info |
+ * loading. A loading toast stays until a later push with the same `id`
+ * turns it into its outcome, which is how a slow save shows progress and
+ * then its result in one place instead of two stacked toasts.
+ */
+const api = {
+  push(message, { tone = 'info', duration, id } = {}) {
+    const options = { id, duration: duration ?? DURATION[tone] };
+    if (tone === 'success') return toast.success(message, options);
+    if (tone === 'error') return toast.error(message, options);
+    if (tone === 'loading') return toast.loading(message, { id });
+    return toast(message, { ...options, icon: <Info size={17} className="shrink-0 text-brand-primary" /> });
+  },
+  dismiss: (id) => toast.dismiss(id),
+};
 
 export function useToast() {
-  const ctx = useContext(ToastContext);
-  if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
-  return ctx;
+  return api;
+}
+
+/** Colours come from the theme tokens, so toasts follow the light/dark toggle. */
+export function AppToaster() {
+  const { t } = useLocale();
+
+  useEffect(() => {
+    setListenerErrorReporter((error) => {
+      const key = LISTENER_ERROR_KEYS[error?.code] ?? 'errors.loadFailed';
+      // One toast per kind of failure: a screen whose five listeners all fail
+      // the same way shouldn't stack five identical toasts.
+      toast.error(t(key), { id: `listener:${key}`, duration: 8000 });
+    });
+    return () => setListenerErrorReporter(() => {});
+  }, [t]);
+
+  return (
+    <Toaster
+      position="bottom-center"
+      gutter={8}
+      containerStyle={{ bottom: 'calc(16px + env(safe-area-inset-bottom, 0px))' }}
+      toastOptions={{
+        style: {
+          background: 'var(--surface-1)',
+          color: 'var(--text-primary)',
+          border: '1px solid var(--border-hair)',
+          borderRadius: '10px',
+          boxShadow: '0 8px 24px rgb(0 0 0 / 0.14)',
+          fontSize: '14px',
+          lineHeight: '1.4',
+          maxWidth: '28rem',
+          padding: '10px 12px',
+          whiteSpace: 'pre-line',
+        },
+        success: { iconTheme: { primary: 'var(--status-good)', secondary: 'var(--surface-1)' } },
+        error: { iconTheme: { primary: 'var(--status-critical)', secondary: 'var(--surface-1)' } },
+        loading: { iconTheme: { primary: 'var(--brand-primary)', secondary: 'var(--border-hair)' } },
+      }}
+    >
+      {(t) => (
+        <ToastBar toast={t}>
+          {({ icon, message }) => (
+            <>
+              {icon}
+              {message}
+              {t.type !== 'loading' ? (
+                <button
+                  type="button"
+                  onClick={() => toast.dismiss(t.id)}
+                  aria-label="Dismiss"
+                  className="shrink-0 rounded p-0.5 text-ink-muted hover:text-ink"
+                >
+                  <X size={14} />
+                </button>
+              ) : null}
+            </>
+          )}
+        </ToastBar>
+      )}
+    </Toaster>
+  );
 }

@@ -16,6 +16,7 @@ import { BrandLogo } from '../components/brand/BrandLogo';
 import { LanguageToggle } from '../components/layout/LanguageToggle';
 import { ThemeToggle } from '../components/layout/ThemeToggle';
 import { Button } from '../components/ui/Button';
+import { useToast } from '../components/ui/Toast';
 
 const googleProvider = new GoogleAuthProvider();
 
@@ -80,6 +81,7 @@ function isPopupUnavailable(error) {
 export default function Login() {
   const { user } = useAuth();
   const { t } = useLocale();
+  const toast = useToast();
   const location = useLocation();
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -109,7 +111,11 @@ export default function Login() {
   // one is silently ignored here rather than shown as an error.
   useEffect(() => {
     try {
-      getRedirectResult(auth).catch((err) => setError(loginErrorMessage(err, t)));
+      getRedirectResult(auth)
+        .then((result) => {
+          if (result?.user) toast.push(welcomeMessage(result.user, t), { tone: 'success' });
+        })
+        .catch((err) => setError(loginErrorMessage(err, t)));
     } catch {
       // Nothing to recover: no redirect result was retrievable, same as if
       // there simply wasn't one pending.
@@ -126,16 +132,19 @@ export default function Login() {
     return <Navigate to={location.state?.from?.pathname ?? '/'} replace />;
   }
 
+  // On success the button deliberately stays busy: AuthContext's
+  // onAuthStateChanged is about to replace this page with the app, and
+  // resetting it here would flash "Sign in" again while the session loads.
   const onSubmit = async ({ email, password }) => {
     setBusy(true);
     setError(null);
+    const toastId = toast.push(t('login.signingIn'), { tone: 'loading' });
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // No further action needed here — AuthContext's onAuthStateChanged
-      // picks up the new session and ProtectedRoute re-renders past /login.
+      const { user: signedIn } = await signInWithEmailAndPassword(auth, email, password);
+      toast.push(welcomeMessage(signedIn, t), { tone: 'success', id: toastId });
     } catch (err) {
+      toast.dismiss(toastId);
       setError(loginErrorMessage(err, t));
-    } finally {
       setBusy(false);
     }
   };
@@ -143,20 +152,25 @@ export default function Login() {
   const onGoogleSignIn = async () => {
     setGoogleBusy(true);
     setError(null);
+    const toastId = toast.push(t('login.signingIn'), { tone: 'loading' });
     try {
-      await signInWithPopup(auth, googleProvider);
+      const { user: signedIn } = await signInWithPopup(auth, googleProvider);
+      toast.push(welcomeMessage(signedIn, t), { tone: 'success', id: toastId });
     } catch (err) {
+      let failure = err;
       if (isPopupUnavailable(err)) {
-        // The page is about to navigate away for the redirect round trip,
-        // so whether `finally` below still flips googleBusy back to false
-        // in the instant before that happens doesn't matter — there's
-        // nothing left on screen to look busy or not by the time it would.
+        // The page navigates away for the redirect round trip; the result
+        // (and its welcome toast) is picked up by getRedirectResult above.
         setError(loginErrorMessage({ code: 'auth/popup-blocked' }, t));
-        await signInWithRedirect(auth, googleProvider);
-        return;
+        try {
+          await signInWithRedirect(auth, googleProvider);
+          return;
+        } catch (redirectErr) {
+          failure = redirectErr;
+        }
       }
-      setError(loginErrorMessage(err, t));
-    } finally {
+      toast.dismiss(toastId);
+      setError(loginErrorMessage(failure, t));
       setGoogleBusy(false);
     }
   };
@@ -261,6 +275,10 @@ export default function Login() {
       </div>
     </div>
   );
+}
+
+function welcomeMessage(user, t) {
+  return t('login.welcome', { name: user.displayName ?? user.email });
 }
 
 /** Google's own multi-colour "G" mark, per their sign-in button guidelines. */

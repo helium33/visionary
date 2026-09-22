@@ -53,6 +53,15 @@ export default {
       borderRadius: {
         card: '10px',
       },
+      keyframes: {
+        breathe: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(0.9)' },
+        },
+      },
+      animation: {
+        breathe: 'breathe 1.6s ease-in-out infinite',
+      },
     },
   },
   plugins: [],

@@ -157,6 +157,26 @@ export const dictionary = {
       errorUnauthorizedDomain: 'This address isn’t authorised for sign-in yet. Ask your admin to add it in the Firebase console.',
       errorNetworkFailed: 'Could not reach the server. Check your connection and try again.',
       errorDefault: 'Something went wrong signing in. Please try again.',
+      welcome: 'Signed in. Welcome, {name}.',
+    },
+    loading: {
+      app: 'Loading Plan B Vision…',
+      page: 'Loading…',
+    },
+    access: {
+      title: 'Waiting for access',
+      body: 'You’re signed in as {email}, but this account doesn’t have a role yet. Ask an admin to give you one, then tap “Check again”.',
+      checkAgain: 'Check again',
+      checking: 'Checking…',
+      stillNone: 'This account still has no role. Ask an admin to assign one.',
+    },
+    errors: {
+      permission:
+        'You don’t have access to some of this data. If an admin just changed your role, sign out and back in.',
+      index:
+        'Some data can’t load yet: the database is missing an index it needs. Ask your admin to deploy the Firestore indexes.',
+      unavailable: 'Can’t reach the server right now. Showing what’s saved on this device.',
+      loadFailed: 'Some data couldn’t be loaded. Please try again.',
     },
   },
 
@@ -294,6 +314,26 @@ export const dictionary = {
       errorUnauthorizedDomain: 'ဤလိပ်စာကို ဝင်ရောက်ရန် ခွင့်ပြုမထားသေးပါ။ Firebase console တွင် ထည့်ရန် သင့်အက်ဒမင်ကို တောင်းဆိုပါ။',
       errorNetworkFailed: 'ဆာဗာသို့ ဆက်သွယ်၍မရပါ။ အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်စမ်းကြည့်ပါ။',
       errorDefault: 'ဝင်ရောက်ရာတွင် တစ်စုံတစ်ခု မှားယွင်းသွားပါသည်။ ထပ်စမ်းကြည့်ပါ။',
+      welcome: 'ဝင်ရောက်ပြီးပါပြီ။ ကြိုဆိုပါသည်၊ {name}။',
+    },
+    loading: {
+      app: 'Plan B Vision ကို ဖွင့်နေသည်…',
+      page: 'ဖွင့်နေသည်…',
+    },
+    access: {
+      title: 'အသုံးပြုခွင့် စောင့်ဆိုင်းနေသည်',
+      body: '{email} ဖြင့် ဝင်ရောက်ထားပါသည်၊ သို့သော် ဤအကောင့်တွင် ရာထူး (role) မသတ်မှတ်ရသေးပါ။ အက်ဒမင်ကို ရာထူးသတ်မှတ်ပေးရန် တောင်းဆိုပြီး “ထပ်စစ်ရန်” ကို နှိပ်ပါ။',
+      checkAgain: 'ထပ်စစ်ရန်',
+      checking: 'စစ်ဆေးနေသည်…',
+      stillNone: 'ဤအကောင့်တွင် ရာထူး မရှိသေးပါ။ အက်ဒမင်ကို သတ်မှတ်ပေးရန် တောင်းဆိုပါ။',
+    },
+    errors: {
+      permission:
+        'ဤဒေတာအချို့ကို ကြည့်ခွင့်မရှိပါ။ အက်ဒမင်က သင့်ရာထူးကို ယခုလေးတင် ပြောင်းထားပါက ထွက်ပြီး ပြန်ဝင်ပါ။',
+      index:
+        'ဒေတာအချို့ကို မဖွင့်နိုင်သေးပါ — database တွင် လိုအပ်သော index မရှိသေးပါ။ Firestore index များကို deploy လုပ်ရန် အက်ဒမင်ကို တောင်းဆိုပါ။',
+      unavailable: 'ယခု ဆာဗာသို့ ဆက်သွယ်၍ မရပါ။ ဤစက်တွင် သိမ်းထားသည်များကို ပြသထားပါသည်။',
+      loadFailed: 'ဒေတာအချို့ကို ဖွင့်၍ မရပါ။ ထပ်စမ်းကြည့်ပါ။',
     },
   },
 };

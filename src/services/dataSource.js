@@ -15,6 +15,7 @@ import { demoCarTrips } from '../data/demoCarTrips';
 import { subscribeDemoUsers } from '../data/demoUsersStore';
 import { subscribeDemoAudit } from '../data/demoAuditStore';
 import { subscribeDemoShops } from '../data/demoShopsStore';
+import { sortRows } from '../lib/sortRows';
 
 /**
  * One subscription layer for both sources.
@@ -32,6 +33,15 @@ function demoSubscribe(rows, cb) {
   return () => clearTimeout(handle);
 }
 
+// Most screens pass no onError, so a failed listener used to leave them on
+// their loading skeleton with nothing on screen saying why. Every failure is
+// also sent here; the toast layer registers the reporter.
+let reportListenerError = () => {};
+
+export function setListenerErrorReporter(report) {
+  reportListenerError = report;
+}
+
 function liveSubscribe(q, cb, onError) {
   return onSnapshot(
     q,
@@ -45,9 +55,19 @@ function liveSubscribe(q, cb, onError) {
     },
     (error) => {
       console.error('[dataSource] listener failed', error);
+      reportListenerError(error);
       onError?.(error);
     },
   );
+}
+
+/**
+ * For queries that filter on one field and need rows ordered by another:
+ * Firestore only serves that pairing with a composite index, so the query
+ * filters and the rows are ordered here instead (see sortRows).
+ */
+function sortedBy(field, direction, cb) {
+  return (snapshot) => cb({ ...snapshot, data: sortRows(snapshot.data, field, direction) });
 }
 
 export function subscribeShops(cb, { salesRepId } = {}, onError) {
@@ -63,9 +83,10 @@ export function subscribeShops(cb, { salesRepId } = {}, onError) {
 }
 
 /**
- * Only OPEN receivables are streamed for the credit screens. The index on
- * (status, dueDate) keeps this cheap, and the result set stays small enough to
- * live comfortably in the offline cache on a rep's phone.
+ * Only OPEN receivables are streamed for the credit screens. Filtering on
+ * status keeps this cheap, and the result set stays small enough to live
+ * comfortably in the offline cache on a rep's phone — small enough to order
+ * by dueDate on the device rather than need a composite index for it.
  */
 export function subscribeOpenVouchers(cb, { salesRepId } = {}, onError) {
   if (isDemoMode) {
@@ -77,8 +98,8 @@ export function subscribeOpenVouchers(cb, { salesRepId } = {}, onError) {
   const clauses = [where('status', 'in', ['ISSUED', 'PARTIAL', 'OVERDUE'])];
   if (salesRepId) clauses.push(where('salesRepId', '==', salesRepId));
   return liveSubscribe(
-    query(collection(db, COL.vouchers), ...clauses, orderBy('dueDate', 'asc')),
-    cb,
+    query(collection(db, COL.vouchers), ...clauses),
+    sortedBy('dueDate', 'asc', cb),
     onError,
   );
 }
@@ -163,8 +184,8 @@ export function subscribeProducts(cb, { category } = {}, onError) {
   const clauses = [where('active', '==', true)];
   if (category) clauses.push(where('category', '==', category));
   return liveSubscribe(
-    query(collection(db, COL.products), ...clauses, orderBy('modelNo', 'asc')),
-    cb,
+    query(collection(db, COL.products), ...clauses),
+    sortedBy('modelNo', 'asc', cb),
     onError,
   );
 }
@@ -202,22 +223,26 @@ export function subscribeAllVariants(cb, onError) {
     );
     return demoSubscribe(rows, cb);
   }
+  // No orderBy: ordering a collection-group query needs its own
+  // collection-group index, and the whole matrix is read anyway.
   return onSnapshot(
-    query(collectionGroup(db, COL.variants), orderBy('colorCode', 'asc')),
+    collectionGroup(db, COL.variants),
     { includeMetadataChanges: true },
     (snap) => {
+      const rows = snap.docs.map((d) => ({
+        id: d.id,
+        productId: d.ref.parent.parent?.id ?? null,
+        ...d.data(),
+      }));
       cb({
-        data: snap.docs.map((d) => ({
-          id: d.id,
-          productId: d.ref.parent.parent?.id ?? null,
-          ...d.data(),
-        })),
+        data: sortRows(rows, 'colorCode', 'asc'),
         pendingWrites: snap.metadata.hasPendingWrites,
         fromCache: snap.metadata.fromCache,
       });
     },
     (error) => {
       console.error('[dataSource] variant group listener failed', error);
+      reportListenerError(error);
       onError?.(error);
     },
   );
@@ -266,8 +291,8 @@ export function subscribeCarTrips(cb, { repId } = {}, onError) {
   }
   const clauses = repId ? [where('repId', '==', repId)] : [];
   return liveSubscribe(
-    query(collection(db, 'carTrips'), ...clauses, orderBy('openedAt', 'desc')),
-    cb,
+    query(collection(db, 'carTrips'), ...clauses),
+    sortedBy('openedAt', 'desc', cb),
     onError,
   );
 }

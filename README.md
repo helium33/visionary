@@ -70,8 +70,9 @@ Open `https://<project-id>.firebaseapp.com` rather than `.web.app`: it matches t
 from a custom auth claim, not from the `users/{uid}` document, and the Cloud Function meant to
 copy one to the other isn't built yet. Without the claim, sign-in succeeds but every read is
 denied. `scripts/set-role.mjs` sets the claim and writes `users/{uid}` together. A role changed
-on the Users screen only writes the document, so run `set-role` again after one. A signed-in
-user picks up a new role only after signing out and back in.
+on the Users screen only writes the document, so run `set-role` again after one. An account with
+no role sees a "Waiting for access" screen rather than the app; once `set-role` has run,
+**Check again** there picks the role up without signing out.
 
 `npm run build:preview` makes the static build used for Artifact previews (hash routing,
 relative asset paths, no service worker). Don't deploy that build.
@@ -527,6 +528,37 @@ row already carries its derived district from `useShopsData.js`; the district fi
 per-township headers use it directly. A phone gets a card list, not a table scrolled sideways —
 the same pattern `CollectionTable.jsx` already uses for the same underlying problem (a list of
 shops, one line of stats each, on a narrow screen).
+
+## Loading, toasts and access
+
+On the real database the app used to sit on its loading skeletons forever for two reasons,
+neither of them slowness: an account with no role claim was treated as a sales rep, so every
+listener was refused, and three admin-path queries (open vouchers by due date, products by
+model, the colour matrix) needed composite or collection-group indexes that weren't deployed.
+Most screens pass no error handler, so the refusals were silent.
+
+- **The role comes from the token claim**, the same thing `firestore.rules` check. No claim means
+  `role: null` and the "Waiting for access" screen (`src/pages/NoAccess.jsx`), never a guessed
+  role. `AuthContext` refreshes the token once before concluding there is none, so a freshly
+  granted role works on the next visit without signing out.
+- **Those three queries filter in Firestore and sort on the device** (`src/lib/sortRows.js`,
+  which mirrors `orderBy` exactly, including dropping documents that lack the field). The result
+  sets are small, and none of them need an index any more.
+- **Every failed listener raises a toast**, one per kind of failure rather than one per listener,
+  through `setListenerErrorReporter` in `dataSource.js`. Loading states are deliberately *not*
+  ended on error: an empty voucher list would show a shop owing nothing, and the voucher
+  screen's credit check would then let a blocked shop buy on credit.
+- **Toasts are react-hot-toast** (`src/components/ui/Toast.jsx`), themed from the CSS tokens.
+  `useToast().push(message, { tone })` is unchanged for existing callers; `tone: 'loading'` plus
+  a later push with the same `id` turns one toast into its outcome, as sign-in does.
+- **Loading is visible from the first paint.** `index.html` carries the same animated brand
+  mark as `LoadingScreen` inside `#root`, painted before any JavaScript arrives, plus an inline
+  script that applies a saved dark theme before paint. Pages are `React.lazy`, so the first
+  download no longer includes every module (Recharts alone was 386 KB).
+
+On a simulated mid-range phone over slow 4G against the emulators: first paint went from
+2.6 s (blank) to 0.5 s, the sign-in form from 3.1 s to 2.3 s, and sign-in → loaded dashboard from
+1.8 s to 1.5 s.
 
 ---
 
