@@ -9,3 +9,4 @@ dev-dist
 .firebase
 coverage
 dist-preview
+dist-login-preview
