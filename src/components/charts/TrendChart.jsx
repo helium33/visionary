@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { useLocale } from '../../context/LocaleContext';
+import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
 
 const PAD = { top: 12, right: 12, bottom: 22, left: 44 };
@@ -13,6 +14,7 @@ const PAD = { top: 12, right: 12, bottom: 22, left: 44 };
  * cross.
  */
 export function TrendChart({ weeks, height = 180 }) {
+  const { t } = useLocale();
   const [hover, setHover] = useState(null);
   const width = 640; // viewBox units; the SVG scales to its container
 
@@ -29,12 +31,12 @@ export function TrendChart({ weeks, height = 180 }) {
       points: weeks.map((w, i) => ({ ...w, x: x(i), ySales: y(w.sales), yCollected: y(w.collected) })),
       salesPath: weeks.map((w, i) => `${i ? 'L' : 'M'}${x(i)},${y(w.sales)}`).join(' '),
       collectedPath: weeks.map((w, i) => `${i ? 'L' : 'M'}${x(i)},${y(w.collected)}`).join(' '),
-      ticks: [0, 0.5, 1].map((t) => ({ value: niceMax * t, y: y(niceMax * t) })),
+      ticks: [0, 0.5, 1].map((f) => ({ value: niceMax * f, y: y(niceMax * f) })),
     };
   }, [weeks, height]);
 
   if (!weeks.length) {
-    return <p className="py-8 text-center text-xs text-ink-secondary">No activity yet</p>;
+    return <p className="py-8 text-center text-xs text-ink-secondary">{t('charts.noActivity')}</p>;
   }
 
   const last = points[points.length - 1];
@@ -43,8 +45,8 @@ export function TrendChart({ weeks, height = 180 }) {
   return (
     <div className="relative">
       <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-secondary">
-        <LegendKey color="var(--series-1)" label="Sales issued" />
-        <LegendKey color="var(--series-3)" label="Cash collected" />
+        <LegendKey color="var(--series-1)" label={t('charts.salesIssued')} />
+        <LegendKey color="var(--series-3)" label={t('charts.cashCollected')} />
       </ul>
 
       <svg
@@ -52,7 +54,7 @@ export function TrendChart({ weeks, height = 180 }) {
         className="w-full"
         style={{ height }}
         role="img"
-        aria-label="Weekly sales issued versus cash collected"
+        aria-label={t('charts.trendAria')}
         onMouseLeave={() => setHover(null)}
         onMouseMove={(e) => {
           const box = e.currentTarget.getBoundingClientRect();
@@ -123,7 +125,7 @@ export function TrendChart({ weeks, height = 180 }) {
               fontSize="10"
               fill="var(--text-muted)"
             >
-              {format(p.start, 'd MMM')}
+              {fmtDate(p.start, 'd MMM')}
             </text>
           ) : null,
         )}
@@ -134,12 +136,12 @@ export function TrendChart({ weeks, height = 180 }) {
           className="pointer-events-none absolute top-6 rounded-md border border-line-hair bg-surface px-2.5 py-2 text-xs shadow-lg"
           style={{ left: `${Math.min((active.x / width) * 100, 72)}%` }}
         >
-          <p className="font-medium text-ink">Week of {format(active.start, 'd MMM')}</p>
+          <p className="font-medium text-ink">{t('charts.weekOf', { date: fmtDate(active.start, 'd MMM') })}</p>
           <p className="mt-1 flex items-center gap-1.5 text-ink-secondary">
-            <Dot color="var(--series-1)" /> Sales K {fmtMMK(active.sales)}
+            <Dot color="var(--series-1)" /> {t('charts.salesAmount', { amount: fmtMMK(active.sales) })}
           </p>
           <p className="flex items-center gap-1.5 text-ink-secondary">
-            <Dot color="var(--series-3)" /> Collected K {fmtMMK(active.collected)}
+            <Dot color="var(--series-3)" /> {t('charts.collectedAmount', { amount: fmtMMK(active.collected) })}
           </p>
         </div>
       ) : null}

@@ -37,6 +37,8 @@ export function priceCart(lines = [], { products, shopTier = 'STANDARD' } = {}) 
         tierApplied: pricing.tier,
         tierLabel: pricing.tierLabel,
         tierReason: pricing.reason,
+        tierReasonCode: pricing.reasonCode,
+        modelQty: pricing.modelQty,
         discountPct: pricing.discountPct,
         unitCost: Number(product?.costing?.actualCost) || 0,
         bundleUnitCost: bundleUnitCost(product, catalogue),

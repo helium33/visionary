@@ -3,6 +3,7 @@ import { Boxes, Coins, PackageX, Search, Skull, Tag, Warehouse } from 'lucide-re
 import { DEAD_STOCK_DAYS, STOCK_BANDS, assessInventory } from '../domain/inventory';
 import { subscribeStockLocations } from '../services/dataSource';
 import { fmtMMK } from '../lib/format';
+import { useLocale } from '../context/LocaleContext';
 import { useCatalogue } from '../hooks/useCatalogue';
 import { useToday } from '../hooks/useToday';
 import { StackedBar } from '../components/charts/StackedBar';
@@ -31,13 +32,14 @@ import { PageHeader } from '../components/layout/AppShell';
  * be computed at read time or it is wrong by definition.
  */
 const TABS = [
-  { key: 'STOCK', label: 'Stock matrix' },
-  { key: 'LOW', label: 'Low & out' },
-  { key: 'DEAD', label: 'Dead stock' },
+  { key: 'STOCK', label: 'inventory.tabStock' },
+  { key: 'LOW', label: 'inventory.tabLow' },
+  { key: 'DEAD', label: 'inventory.tabDead' },
 ];
 
 export default function Inventory() {
   const today = useToday();
+  const { t } = useLocale();
   // Inventory sums across every colour, so it takes the whole matrix rather
   // than loading variants a model at a time.
   const { products, ensureVariants, loading } = useCatalogue({ allVariants: true });
@@ -77,6 +79,8 @@ export default function Inventory() {
 
   const bandSegments = STOCK_BANDS.map((band) => ({
     ...band,
+    label: t(`inventory.band.${band.key}`),
+    range: t(`inventory.bandRange.${band.key}`),
     value: totals.bands[band.key] ?? 0,
   }));
 
@@ -118,12 +122,12 @@ export default function Inventory() {
   return (
     <>
       <PageHeader
-        title="Inventory"
-        subtitle={`Matrix stock · dead stock after ${DEAD_STOCK_DAYS} days without a sale`}
+        title={t('inventory.title')}
+        subtitle={t('inventory.subtitle', { days: DEAD_STOCK_DAYS })}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <select
-              aria-label="Stock location"
+              aria-label={t('inventory.stockLocation')}
               value={locationId}
               onChange={(e) => setLocationId(e.target.value)}
               className="h-9 rounded-md border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
@@ -140,7 +144,9 @@ export default function Inventory() {
               disabled={!selected.length}
               onClick={() => setLabelsOpen(true)}
             >
-              Print labels{selected.length ? ` (${selected.length})` : ''}
+              {selected.length
+                ? t('inventory.printLabelsCount', { count: selected.length })
+                : t('inventory.printLabels')}
             </Button>
           </div>
         }
@@ -149,60 +155,62 @@ export default function Inventory() {
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
-            label="Units in stock"
+            label={t('inventory.statUnits')}
             value={totals.units}
             unit=""
             raw
             icon={Boxes}
-            footnote={`${totals.modelCount} models`}
+            footnote={t('inventory.statModels', { count: totals.modelCount })}
           />
           <StatTile
-            label="Capital at landed cost"
+            label={t('inventory.statCapital')}
             value={totals.costValue}
             icon={Coins}
-            footnote={`list value K ${fmtMMK(totals.retailValue, { compact: true })}`}
+            footnote={t('inventory.statListValue', {
+              amount: fmtMMK(totals.retailValue, { compact: true }),
+            })}
           />
           <StatTile
-            label="Dead stock"
+            label={t('inventory.statDead')}
             value={totals.deadValue}
             icon={Skull}
             tone={totals.deadValue > 0 ? 'critical' : 'neutral'}
-            footnote={`${totals.deadUnits} pcs unsold ${DEAD_STOCK_DAYS}+ days`}
+            footnote={t('inventory.statDeadNote', { count: totals.deadUnits, days: DEAD_STOCK_DAYS })}
           />
           <StatTile
-            label="Colours to reorder"
+            label={t('inventory.statReorder')}
             value={totals.lowVariantCount + totals.outVariantCount}
             unit=""
             raw
             icon={PackageX}
             tone={totals.outVariantCount > 0 ? 'critical' : 'neutral'}
-            footnote={`${totals.outVariantCount} out of stock`}
+            footnote={t('inventory.statOutNote', { count: totals.outVariantCount })}
           />
         </div>
 
         <Card>
           <CardHeader
-            title="Stock ageing"
-            subtitle="Capital at cost, by how long since the model last sold"
+            title={t('inventory.ageingTitle')}
+            subtitle={t('inventory.ageingSub')}
             icon={Warehouse}
           />
           <CardBody>
             <StackedBar
               segments={bandSegments}
               total={totals.costValue}
-              ariaLabel="Stock capital by time since last sale"
+              ariaLabel={t('inventory.ageingAria')}
             />
           </CardBody>
         </Card>
 
         <Card>
           <CardHeader
-            title="Catalogue"
-            subtitle="Models × colours — open a model to pick colours for a label run"
+            title={t('inventory.catalogueTitle')}
+            subtitle={t('inventory.catalogueSub')}
             icon={Boxes}
             action={
               <label className="relative">
-                <span className="sr-only">Search models</span>
+                <span className="sr-only">{t('inventory.searchModels')}</span>
                 <Search
                   size={13}
                   className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-muted"
@@ -211,7 +219,7 @@ export default function Inventory() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Model, brand, material"
+                  placeholder={t('inventory.searchPlaceholder')}
                   className="h-7 w-full min-w-[9rem] rounded border border-line-hair bg-surface pl-7 pr-2 text-xs text-ink outline-none sm:w-44"
                 />
               </label>
@@ -237,7 +245,7 @@ export default function Inventory() {
                       : 'text-ink-secondary hover:bg-raised hover:text-ink'
                   }`}
                 >
-                  {option.label}
+                  {t(option.label)}
                   <span className="ml-1.5 tabular-nums opacity-70">{count}</span>
                 </button>
               );

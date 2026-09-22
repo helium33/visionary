@@ -16,6 +16,22 @@ export function translate(locale, key, vars) {
   return interpolate(template, vars);
 }
 
+let activeLocale = DEFAULT_LOCALE;
+
+/** Mirrors LocaleProvider's locale for text built outside components. */
+export function setActiveLocale(locale) {
+  activeLocale = locale;
+}
+
+export function getActiveLocale() {
+  return activeLocale;
+}
+
+/** `t()` for code outside React: service messages, date and day formatting. */
+export function tNow(key, vars) {
+  return translate(activeLocale, key, vars);
+}
+
 function lookup(table, key) {
   if (!table) return undefined;
   return key.split('.').reduce((node, part) => (node == null ? undefined : node[part]), table);
@@ -24,4 +40,14 @@ function lookup(table, key) {
 function interpolate(template, vars) {
   if (typeof template !== 'string' || !vars) return template;
   return template.replace(/\{(\w+)\}/g, (match, name) => (name in vars ? String(vars[name]) : match));
+}
+
+/**
+ * `t(key)`, or `fallback` when no language has the key — for labels of keyed
+ * data values (a material, a shape) that the table may not know yet, which
+ * should show as stored rather than as a dotted key.
+ */
+export function tOr(t, key, fallback) {
+  const text = t(key);
+  return text === key ? fallback : text;
 }

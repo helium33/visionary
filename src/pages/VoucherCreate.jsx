@@ -12,12 +12,13 @@ import { createVoucher } from '../services/voucherService';
 import { subscribeStockLocations } from '../services/dataSource';
 import { fmtMMK } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 import { useCatalogue } from '../hooks/useCatalogue';
 import { useCreditData } from '../hooks/useCreditData';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 import { GridFastEntry } from '../components/voucher/GridFastEntry';
 import { ModelPicker } from '../components/voucher/ModelPicker';
-import { CreditGate, ShopSelect } from '../components/voucher/ShopSelect';
+import { CreditGate, ShopSelect, gateReasonText } from '../components/voucher/ShopSelect';
 import { VoucherLines } from '../components/voucher/VoucherLines';
 import { VoucherPrint } from '../components/voucher/VoucherPrint';
 import { VoucherTotals } from '../components/voucher/VoucherTotals';
@@ -26,6 +27,7 @@ import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { SkeletonRows } from '../components/ui/EmptyState';
 import { useToast } from '../components/ui/Toast';
 import { PageHeader } from '../components/layout/AppShell';
+import { townshipLabel } from '../constants/districts';
 
 /**
  * ===========================================================================
@@ -47,6 +49,7 @@ import { PageHeader } from '../components/layout/AppShell';
  */
 export default function VoucherCreate() {
   const { user } = useAuth();
+  const { t, locale } = useLocale();
   const toast = useToast();
   const online = useOnlineStatus();
   const { portfolio, loading: creditLoading, today } = useCreditData();
@@ -139,7 +142,10 @@ export default function VoucherCreate() {
       return next;
     });
     toast.push(
-      `Added ${incoming.reduce((s, l) => s + l.qty, 0)} pcs of ${byId.get(incoming[0].productId)?.modelNo ?? ''}`,
+      t('vouchers.addedToast', {
+        qty: incoming.reduce((s, l) => s + l.qty, 0),
+        model: byId.get(incoming[0].productId)?.modelNo ?? '',
+      }),
       { tone: 'success', duration: 1800 },
     );
   };
@@ -189,8 +195,10 @@ export default function VoucherCreate() {
       return;
     }
     toast.push(
-      `${result.voucher.voucherNo} issued · K ${fmtMMK(result.voucher.grandTotal)}` +
-        (online ? '' : ' — queued offline, will sync automatically'),
+      t(online ? 'vouchers.issuedToast' : 'vouchers.issuedOfflineToast', {
+        no: result.voucher.voucherNo,
+        amount: fmtMMK(result.voucher.grandTotal),
+      }),
       { tone: 'success' },
     );
     setIssued(result.voucher);
@@ -207,13 +215,13 @@ export default function VoucherCreate() {
   return (
     <>
       <PageHeader
-        title="New voucher"
-        subtitle="Grid fast entry · 14-day terms applied automatically"
+        title={t('vouchers.newVoucher')}
+        subtitle={t('vouchers.createSubtitle')}
         actions={
           <div className="flex gap-1 rounded-md border border-line-hair p-0.5 text-xs">
             {[
-              ['SALE', 'Sale', Receipt],
-              ['CONSIGNMENT', 'Consignment', Package],
+              ['SALE', t('vouchers.typeSale'), Receipt],
+              ['CONSIGNMENT', t('vouchers.typeConsignment'), Package],
             ].map(([key, label, Icon]) => (
               <button
                 key={key}
@@ -236,12 +244,12 @@ export default function VoucherCreate() {
         <div className="space-y-4">
           <Card>
             <CardHeader
-              title="Shop"
-              subtitle={shop ? `${shop.township} · ${shop.ownerName}` : 'Who is this order for?'}
+              title={t('vouchers.shop')}
+              subtitle={shop ? `${townshipLabel(shop.township, locale)} · ${shop.ownerName}` : t('vouchers.whoFor')}
               icon={Store}
               action={
                 <select
-                  aria-label="Stock location"
+                  aria-label={t('vouchers.stockLocation')}
                   value={locationId}
                   onChange={(e) => setLocationId(e.target.value)}
                   className="h-8 rounded border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
@@ -278,8 +286,8 @@ export default function VoucherCreate() {
 
           <Card>
             <CardHeader
-              title="Grid fast entry"
-              subtitle="Pick a model, then type quantities down its colour row"
+              title={t('vouchers.gridTitle')}
+              subtitle={t('vouchers.gridSub')}
               icon={Grid3x3}
             />
             <CardBody className="pb-0">
@@ -302,11 +310,11 @@ export default function VoucherCreate() {
 
           <Card>
             <CardHeader
-              title="Voucher items"
+              title={t('vouchers.itemsTitle')}
               subtitle={
                 lines.length
-                  ? `${totals.lineCount} lines · ${totals.pieces} pcs`
-                  : 'Nothing added yet'
+                  ? t('vouchers.itemsSummary', { lines: totals.lineCount, pieces: totals.pieces })
+                  : t('vouchers.nothingYet')
               }
               icon={Receipt}
             />
@@ -325,11 +333,11 @@ export default function VoucherCreate() {
                   aria-hidden="true"
                 />
                 <p className="text-xs text-ink-secondary">
-                  <span className="font-medium text-ink">Not enough stock here.</span>{' '}
+                  <span className="font-medium text-ink">{t('vouchers.notEnoughStock')}</span>{' '}
                   {stock.shortages
-                    .map((s) => `${s.label} short by ${s.short} (${s.available} on hand)`)
+                    .map((s) => t('vouchers.shortage', { label: s.label, short: s.short, available: s.available }))
                     .join('; ')}
-                  . Reduce the quantity or switch stock location.
+                  . {t('vouchers.shortageHint')}
                 </p>
               </div>
             ) : null}
@@ -338,9 +346,11 @@ export default function VoucherCreate() {
               <div className="flex items-start gap-2 border-t border-line-hair px-4 py-2.5">
                 <Truck size={14} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
                 <p className="text-xs text-ink-secondary">
-                  Bundled accessories are short:{' '}
-                  {stock.warnings.map((w) => `${w.label} by ${w.short}`).join(', ')}. The frames
-                  still ship — reorder the accessories.
+                  {t('vouchers.accessoriesShort', {
+                    list: stock.warnings
+                      .map((w) => t('vouchers.accessoryShort', { label: w.label, short: w.short }))
+                      .join(', '),
+                  })}
                 </p>
               </div>
             ) : null}
@@ -349,7 +359,7 @@ export default function VoucherCreate() {
 
         <div className="lg:sticky lg:top-[4.5rem] lg:self-start">
           <Card>
-            <CardHeader title="Invoice" icon={Receipt} />
+            <CardHeader title={t('vouchers.invoice')} icon={Receipt} />
             <CardBody>
               <VoucherTotals
                 totals={totals}
@@ -369,11 +379,11 @@ export default function VoucherCreate() {
 
               {shop && !gate.allowed ? (
                 <p className="mt-3 text-2xs text-status-critical">
-                  Blocked: {gate.reason}
+                  {t('vouchers.blocked', { reason: gateReasonText(gate, t) })}
                 </p>
               ) : null}
               {!shop ? (
-                <p className="mt-3 text-2xs text-ink-secondary">Select a shop to issue a voucher.</p>
+                <p className="mt-3 text-2xs text-ink-secondary">{t('vouchers.selectShop')}</p>
               ) : null}
             </CardBody>
           </Card>

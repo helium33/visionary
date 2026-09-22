@@ -2,14 +2,15 @@ import { useMemo, useState } from 'react';
 import { Printer, QrCode, ScanBarcode, Tag } from 'lucide-react';
 import { buildLabelRun, expandLabels } from '../../domain/inventory';
 import { PRICE_TIERS } from '../../lib/constants';
+import { useLocale } from '../../context/LocaleContext';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import { LABEL_SIZES, LabelSheet } from './LabelSheet';
 
 const CODE_TYPES = [
-  { key: 'barcode', label: 'Barcode', icon: ScanBarcode },
-  { key: 'qr', label: 'QR', icon: QrCode },
-  { key: 'both', label: 'Both', icon: Tag },
+  { key: 'barcode', label: 'inventory.codeBarcode', icon: ScanBarcode },
+  { key: 'qr', label: 'inventory.codeQr', icon: QrCode },
+  { key: 'both', label: 'inventory.codeBoth', icon: Tag },
 ];
 
 /**
@@ -18,6 +19,7 @@ const CODE_TYPES = [
  * produces.
  */
 export function LabelPrintModal({ open, selection, locationId, onClose }) {
+  const { t } = useLocale();
   const [sizeKey, setSizeKey] = useState('MEDIUM');
   const [codeType, setCodeType] = useState('barcode');
   const [priceTier, setPriceTier] = useState('STANDARD');
@@ -46,20 +48,25 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
 
   if (!open) return null;
 
+  const colours = t(selection.length === 1 ? 'inventory.colourOne' : 'inventory.colourMany', {
+    count: selection.length,
+  });
+  const labelCount = t(total === 1 ? 'inventory.labelOne' : 'inventory.labelMany', { count: total });
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       width="max-w-3xl"
-      title="Print labels"
-      subtitle={`${selection.length} colour${selection.length === 1 ? '' : 's'} selected · ${total} label${total === 1 ? '' : 's'}`}
+      title={t('inventory.printLabels')}
+      subtitle={t('inventory.runSubtitle', { colours, labels: labelCount })}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Close
+            {t('ui.close')}
           </Button>
           <Button variant="primary" icon={Printer} disabled={total === 0} onClick={() => window.print()}>
-            Print {total} label{total === 1 ? '' : 's'}
+            {t('inventory.printRun', { labels: labelCount })}
           </Button>
         </>
       }
@@ -69,7 +76,7 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
 
       <div className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Label size" htmlFor="label-size">
+          <Field label={t('inventory.labelSize')} htmlFor="label-size">
             <select
               id="label-size"
               value={sizeKey}
@@ -78,16 +85,16 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
             >
               {Object.values(LABEL_SIZES).map((option) => (
                 <option key={option.key} value={option.key}>
-                  {option.label}
+                  {t(`inventory.size.${option.key}`)}
                 </option>
               ))}
             </select>
           </Field>
 
-          <Field label="Code">
+          <Field label={t('inventory.code')} groupId="label-code">
             <div
               role="group"
-              aria-labelledby="Code-group-label"
+              aria-labelledby="label-code"
               className="flex gap-1 rounded-md border border-line-hair p-0.5"
             >
               {CODE_TYPES.map((option) => (
@@ -101,13 +108,13 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
                   }`}
                 >
                   <option.icon size={13} aria-hidden="true" />
-                  {option.label}
+                  {t(option.label)}
                 </button>
               ))}
             </div>
           </Field>
 
-          <Field label="Price shown" htmlFor="label-price-tier">
+          <Field label={t('inventory.priceShown')} htmlFor="label-price-tier">
             <div className="flex gap-1.5">
               <select
                 id="label-price-tier"
@@ -118,7 +125,7 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
               >
                 {Object.values(PRICE_TIERS).map((tier) => (
                   <option key={tier.key} value={tier.key}>
-                    {tier.label}
+                    {t(`labels.priceTier.${tier.key}`)}
                   </option>
                 ))}
               </select>
@@ -129,12 +136,12 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
                   onChange={(e) => setShowPrice(e.target.checked)}
                   className="h-3.5 w-3.5"
                 />
-                Show
+                {t('inventory.show')}
               </label>
             </div>
           </Field>
 
-          <Field label="How many" htmlFor="label-copies-mode">
+          <Field label={t('inventory.howMany')} htmlFor="label-copies-mode">
             <div className="flex gap-1.5">
               <select
                 id="label-copies-mode"
@@ -142,15 +149,15 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
                 onChange={(e) => setMode(e.target.value)}
                 className="h-9 min-w-0 flex-1 rounded-md border border-line-hair bg-surface px-2 text-sm text-ink outline-none"
               >
-                <option value="PER_UNIT">One per unit in stock</option>
-                <option value="FIXED">Fixed number each</option>
+                <option value="PER_UNIT">{t('inventory.perUnit')}</option>
+                <option value="FIXED">{t('inventory.fixedEach')}</option>
               </select>
               {mode === 'FIXED' ? (
                 <input
                   inputMode="numeric"
                   value={fixedCopies}
                   onChange={(e) => setFixedCopies(e.target.value)}
-                  aria-label="Copies per colour"
+                  aria-label={t('inventory.copiesPerColour')}
                   className="h-9 w-16 rounded-md border border-line-hair bg-surface px-2 text-center text-sm tabular-nums text-ink outline-none"
                 />
               ) : null}
@@ -160,14 +167,14 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
 
         {total === 0 ? (
           <p className="rounded-card border border-line-hair bg-raised px-3 py-6 text-center text-xs text-ink-secondary">
-            Nothing to print — the selected colours have no stock at this location. Switch to a
-            fixed number of copies to pre-print labels for an incoming delivery.
+            {t('inventory.nothingToPrint')}
           </p>
         ) : (
           <div>
             <p className="mb-2 text-xs text-ink-secondary">
-              Preview at actual size
-              {total > PREVIEW_CAP ? ` — showing ${PREVIEW_CAP} of ${total}` : ''}
+              {total > PREVIEW_CAP
+                ? t('inventory.previewCapped', { shown: PREVIEW_CAP, total })
+                : t('inventory.previewActual')}
             </p>
             <div className="max-h-80 overflow-auto rounded-card border border-line-hair bg-white p-2">
               <LabelSheet
@@ -196,7 +203,7 @@ export function LabelPrintModal({ open, selection, locationId, onClose }) {
   );
 }
 
-function Field({ label, htmlFor, children }) {
+function Field({ label, htmlFor, groupId, children }) {
   return (
     <div>
       {htmlFor ? (
@@ -206,7 +213,7 @@ function Field({ label, htmlFor, children }) {
       ) : (
         // A group of buttons has no single control to point at, so the name
         // goes on the group instead.
-        <p className="mb-1 text-xs font-medium text-ink" id={`${label}-group-label`}>
+        <p className="mb-1 text-xs font-medium text-ink" id={groupId}>
           {label}
         </p>
       )}

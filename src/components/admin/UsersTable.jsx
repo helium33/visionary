@@ -3,11 +3,12 @@ import { Ban, CheckCircle2, ShieldAlert } from 'lucide-react';
 import { setUserActive, updateUserRole } from '../../services/userService';
 import { ROLE_LABELS } from '../../lib/constants';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { useToast } from '../ui/Toast';
 import { Button } from '../ui/Button';
 import { initialsOf } from '../../lib/format';
 
-const ROLE_OPTIONS = Object.entries(ROLE_LABELS);
+const ROLE_OPTIONS = Object.keys(ROLE_LABELS);
 
 /**
  * Role and status live-edit here; everything else about a user (name, email,
@@ -17,6 +18,7 @@ const ROLE_OPTIONS = Object.entries(ROLE_LABELS);
  */
 export function UsersTable({ users }) {
   const { user: me } = useAuth();
+  const { t } = useLocale();
   const toast = useToast();
   const [pending, setPending] = useState(null);
 
@@ -27,8 +29,8 @@ export function UsersTable({ users }) {
     setPending(null);
     toast.push(
       result.ok
-        ? `${targetUser.name} is now ${ROLE_LABELS[role]}`
-        : result.message ?? 'Could not change the role.',
+        ? t('admin.roleChanged', { name: targetUser.name, role: t(`labels.role.${role}`) })
+        : result.message ?? t('admin.roleChangeFailed'),
       { tone: result.ok ? 'success' : 'error' },
     );
   };
@@ -43,8 +45,8 @@ export function UsersTable({ users }) {
     setPending(null);
     toast.push(
       result.ok
-        ? `${targetUser.name} ${targetUser.active ? 'deactivated' : 'reactivated'}`
-        : result.message ?? 'Could not update the account.',
+        ? t(targetUser.active ? 'admin.deactivatedToast' : 'admin.reactivatedToast', { name: targetUser.name })
+        : result.message ?? t('admin.statusFailed'),
       { tone: result.ok ? 'success' : 'error' },
     );
   };
@@ -74,11 +76,11 @@ export function UsersTable({ users }) {
                 disabled={row.id === me?.id || pending === row.id}
                 onClick={() => onToggleActive(row)}
               >
-                {row.active === false ? 'Reactivate' : 'Deactivate'}
+                {row.active === false ? t('admin.reactivate') : t('admin.deactivate')}
               </Button>
             </div>
             {row.id === me?.id ? (
-              <p className="mt-1.5 text-2xs text-ink-muted">This is your own account.</p>
+              <p className="mt-1.5 text-2xs text-ink-muted">{t('admin.ownAccount')}</p>
             ) : null}
           </li>
         ))}
@@ -88,10 +90,10 @@ export function UsersTable({ users }) {
         <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="border-b border-line-hair text-left text-xs text-ink-secondary">
-              <th className="px-4 py-2 font-medium">User</th>
-              <th className="px-3 py-2 font-medium">Role</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 text-right font-medium">Action</th>
+              <th className="px-4 py-2 font-medium">{t('admin.colUser')}</th>
+              <th className="px-3 py-2 font-medium">{t('admin.colRole')}</th>
+              <th className="px-3 py-2 font-medium">{t('admin.colStatus')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('admin.colAction')}</th>
             </tr>
           </thead>
           <tbody>
@@ -104,7 +106,7 @@ export function UsersTable({ users }) {
                       <p className="truncate font-medium text-ink">
                         {row.name}
                         {row.id === me?.id ? (
-                          <span className="ml-1.5 text-2xs font-normal text-ink-muted">(you)</span>
+                          <span className="ml-1.5 text-2xs font-normal text-ink-muted">{t('admin.you')}</span>
                         ) : null}
                       </p>
                       <p className="truncate text-2xs text-ink-secondary">{row.email}</p>
@@ -121,11 +123,11 @@ export function UsersTable({ users }) {
                 <td className="whitespace-nowrap px-3 py-2.5">
                   {row.active === false ? (
                     <span className="inline-flex items-center gap-1 text-2xs text-status-critical">
-                      <Ban size={11} aria-hidden="true" /> Deactivated
+                      <Ban size={11} aria-hidden="true" /> {t('admin.deactivated')}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-2xs text-status-good">
-                      <CheckCircle2 size={11} aria-hidden="true" /> Active
+                      <CheckCircle2 size={11} aria-hidden="true" /> {t('admin.active')}
                     </span>
                   )}
                 </td>
@@ -135,10 +137,10 @@ export function UsersTable({ users }) {
                     variant={row.active === false ? 'secondary' : 'quiet'}
                     icon={row.active === false ? CheckCircle2 : Ban}
                     disabled={row.id === me?.id || pending === row.id}
-                    title={row.id === me?.id ? "You can't change your own account" : undefined}
+                    title={row.id === me?.id ? t('admin.cantChangeOwnAccount') : undefined}
                     onClick={() => onToggleActive(row)}
                   >
-                    {row.active === false ? 'Reactivate' : 'Deactivate'}
+                    {row.active === false ? t('admin.reactivate') : t('admin.deactivate')}
                   </Button>
                 </td>
               </tr>
@@ -149,28 +151,26 @@ export function UsersTable({ users }) {
 
       <p className="flex items-start gap-2 border-t border-line-hair px-4 py-2.5 text-2xs text-ink-secondary">
         <ShieldAlert size={13} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
-        A role change here writes the user&rsquo;s document; the custom auth claim that Firestore
-        rules actually check is mirrored by a server function moments later, never set directly by
-        a client. You cannot change your own role or deactivate your own account, to avoid locking
-        yourself out mid-session.
+        {t('admin.roleNote')}
       </p>
     </>
   );
 }
 
 function RoleSelect({ user, disabled, onChange }) {
+  const { t } = useLocale();
   return (
     <select
-      aria-label={`Role for ${user.name}`}
+      aria-label={t('admin.roleFor', { name: user.name })}
       value={user.role}
       disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      title={disabled ? "You can't change your own role" : undefined}
+      title={disabled ? t('admin.cantChangeOwnRole') : undefined}
       className="h-8 rounded-md border border-line-hair bg-surface px-2 text-xs text-ink outline-none disabled:opacity-50"
     >
-      {ROLE_OPTIONS.map(([key, label]) => (
+      {ROLE_OPTIONS.map((key) => (
         <option key={key} value={key}>
-          {label}
+          {t(`labels.role.${key}`)}
         </option>
       ))}
     </select>

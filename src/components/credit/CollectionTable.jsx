@@ -1,5 +1,7 @@
 import { Banknote, FileText, Lock, MessageCircle } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 import { CREDIT_STATUS } from '../../domain/credit';
+import { townshipLabel } from '../../constants/districts';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
 import { Button } from '../ui/Button';
@@ -15,12 +17,14 @@ import { DueMeter } from './DueMeter';
  * discharges the relief rule for the lighter status fills.
  */
 export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canCollect }) {
+  const { t, locale } = useLocale();
+
   if (!rows.length) {
     return (
       <EmptyState
         icon={Banknote}
-        title="Nothing to chase"
-        description="Every shop in scope is inside its 14-day term."
+        title={t('credit.nothingToChase')}
+        description={t('credit.nothingToChaseHint')}
       />
     );
   }
@@ -39,14 +43,16 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
               >
                 <p className="truncate text-sm font-medium text-ink">{shop.name}</p>
                 <p className="text-2xs text-ink-secondary">
-                  {shop.township} · {state.oldestVoucher?.voucherNo ?? '—'}
+                  {townshipLabel(shop.township, locale)} · {state.oldestVoucher?.voucherNo ?? '—'}
                 </p>
               </button>
               <StatusPill
                 status={state.status}
                 size="sm"
                 detail={
-                  state.status === CREDIT_STATUS.LOCKED ? `${state.maxDaysOverdue}d` : null
+                  state.status === CREDIT_STATUS.LOCKED
+                    ? t('credit.daysShort', { n: state.maxDaysOverdue })
+                    : null
                 }
               />
             </div>
@@ -57,7 +63,7 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                 K {fmtMMK(state.outstanding)}
                 {state.overdueAmount > 0 ? (
                   <span className="block text-2xs font-normal text-status-critical">
-                    K {fmtMMK(state.overdueAmount)} overdue
+                    {t('credit.overdueAmount', { amount: fmtMMK(state.overdueAmount) })}
                   </span>
                 ) : null}
               </p>
@@ -71,7 +77,7 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                 className="flex-1"
                 onClick={() => onStatement(shop, state)}
               >
-                Remind
+                {t('credit.remind')}
               </Button>
               {canCollect ? (
                 <Button
@@ -81,7 +87,7 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                   className="flex-1"
                   onClick={() => onPay(shop, state)}
                 >
-                  Collect
+                  {t('credit.collect')}
                 </Button>
               ) : null}
             </div>
@@ -96,12 +102,12 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
         <table className="w-full min-w-[820px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line-hair text-left text-xs text-ink-secondary">
-              <th className="px-4 py-2 font-medium">Shop</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium">Oldest voucher</th>
-              <th className="px-3 py-2 font-medium">14-day term</th>
-              <th className="px-3 py-2 text-right font-medium">Outstanding</th>
-              <th className="px-4 py-2 text-right font-medium">Action</th>
+              <th className="px-4 py-2 font-medium">{t('credit.colShop')}</th>
+              <th className="px-3 py-2 font-medium">{t('credit.colStatus')}</th>
+              <th className="px-3 py-2 font-medium">{t('credit.colOldest')}</th>
+              <th className="px-3 py-2 font-medium">{t('credit.colTerm')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('credit.colOutstanding')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('credit.colAction')}</th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +121,9 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                   >
                     {shop.name}
                   </button>
-                  <p className="whitespace-nowrap text-2xs text-ink-secondary">{shop.township}</p>
+                  <p className="whitespace-nowrap text-2xs text-ink-secondary">
+                    {townshipLabel(shop.township, locale)}
+                  </p>
                 </td>
 
                 <td className="whitespace-nowrap px-3 py-2.5">
@@ -124,9 +132,9 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                     size="sm"
                     detail={
                       state.override
-                        ? 'override'
+                        ? t('credit.overrideTag')
                         : state.status === CREDIT_STATUS.LOCKED
-                          ? `${state.maxDaysOverdue}d`
+                          ? t('credit.daysShort', { n: state.maxDaysOverdue })
                           : null
                     }
                   />
@@ -135,7 +143,7 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                 <td className="whitespace-nowrap px-3 py-2.5">
                   <p className="tabular-nums text-ink">{state.oldestVoucher?.voucherNo ?? '—'}</p>
                   <p className="text-2xs text-ink-muted">
-                    due {fmtDate(state.oldestAging?.dueDate, 'dd MMM')}
+                    {t('credit.dueOn', { date: fmtDate(state.oldestAging?.dueDate, 'dd MMM') })}
                   </p>
                 </td>
 
@@ -147,7 +155,7 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                   <p className="font-medium tabular-nums text-ink">{fmtMMK(state.outstanding)}</p>
                   {state.overdueAmount > 0 ? (
                     <p className="text-2xs tabular-nums text-status-critical">
-                      {fmtMMK(state.overdueAmount)} overdue
+                      {t('credit.overdueSmall', { amount: fmtMMK(state.overdueAmount) })}
                     </p>
                   ) : null}
                 </td>
@@ -159,9 +167,9 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                       variant="quiet"
                       icon={MessageCircle}
                       onClick={() => onStatement(shop, state)}
-                      title="Send statement via Viber or Telegram"
+                      title={t('credit.sendStatementHint')}
                     >
-                      Remind
+                      {t('credit.remind')}
                     </Button>
                     {canCollect ? (
                       <Button
@@ -170,7 +178,7 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
                         icon={Banknote}
                         onClick={() => onPay(shop, state)}
                       >
-                        Collect
+                        {t('credit.collect')}
                       </Button>
                     ) : null}
                   </div>
@@ -185,24 +193,22 @@ export function CollectionTable({ rows, onPay, onStatement, onOpenShop, canColle
 }
 
 export function LockedBanner({ count, amount, onReview }) {
+  const { t } = useLocale();
   if (!count) return null;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-card border border-status-critical/40 bg-wash-critical px-4 py-3">
       <div className="flex items-start gap-2.5">
         <Lock size={17} className="mt-0.5 shrink-0 text-status-critical" aria-hidden="true" />
         <div>
-          <p className="text-sm font-semibold text-ink">
-            {count} shop{count === 1 ? '' : 's'} locked — new vouchers blocked
-          </p>
+          <p className="text-sm font-semibold text-ink">{t('credit.lockedBanner', { count })}</p>
           <p className="text-xs text-ink-secondary">
-            K {fmtMMK(amount)} is past the 14-day term. An admin master password is required to
-            release a shop for one order.
+            {t('credit.lockedBody', { amount: fmtMMK(amount) })}
           </p>
         </div>
       </div>
       {onReview ? (
         <Button size="sm" variant="secondary" icon={FileText} onClick={onReview}>
-          Review locked shops
+          {t('credit.reviewLocked')}
         </Button>
       ) : null}
     </div>

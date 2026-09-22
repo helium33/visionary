@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { KeyRound, ShieldAlert, WifiOff } from 'lucide-react';
 import { OVERRIDE_MINUTES, requestCreditOverride } from '../../services/creditService';
-import { fmtMMK } from '../../lib/format';
+import { fmtDays, fmtMMK } from '../../lib/format';
+import { townshipLabel } from '../../constants/districts';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus';
 import { useToast } from '../ui/Toast';
 import { Button } from '../ui/Button';
@@ -18,6 +20,7 @@ import { Modal } from '../ui/Modal';
  */
 export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
   const { user } = useAuth();
+  const { t, locale } = useLocale();
   const online = useOnlineStatus();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
@@ -49,10 +52,9 @@ export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
       setError('password', { message: result.message });
       return;
     }
-    toast.push(
-      `${shop.name} released for ${OVERRIDE_MINUTES} minutes. The lock returns automatically.`,
-      { tone: 'success' },
-    );
+    toast.push(t('credit.releasedToast', { shop: shop.name, minutes: OVERRIDE_MINUTES }), {
+      tone: 'success',
+    });
     onGranted?.(result.override);
     close();
   };
@@ -63,12 +65,12 @@ export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
     <Modal
       open={open}
       onClose={close}
-      title="Release a locked shop"
-      subtitle={`${shop.name} · ${shop.township}`}
+      title={t('credit.releaseTitle')}
+      subtitle={`${shop.name} · ${townshipLabel(shop.township, locale)}`}
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             variant="danger"
@@ -76,7 +78,7 @@ export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
             disabled={submitting || !online}
             onClick={handleSubmit(onSubmit)}
           >
-            {submitting ? 'Verifying…' : 'Release for 30 min'}
+            {submitting ? t('credit.verifying') : t('credit.releaseFor', { minutes: OVERRIDE_MINUTES })}
           </Button>
         </>
       }
@@ -86,31 +88,26 @@ export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
           <ShieldAlert size={16} className="mt-0.5 shrink-0 text-status-critical" aria-hidden="true" />
           <div className="text-xs text-ink-secondary">
             <p className="text-sm font-medium text-ink">
-              K {fmtMMK(state.overdueAmount)} is {state.maxDaysOverdue} day
-              {state.maxDaysOverdue === 1 ? '' : 's'} past the 14-day term.
+              {t('credit.overdueDays', {
+                amount: fmtMMK(state.overdueAmount),
+                days: fmtDays(state.maxDaysOverdue),
+              })}
             </p>
-            <p className="mt-0.5">
-              Releasing this shop lets one more voucher through. The lock re-engages after{' '}
-              {OVERRIDE_MINUTES} minutes — it is not a permanent exemption, and the release is
-              recorded against your name.
-            </p>
+            <p className="mt-0.5">{t('credit.releaseExplain', { minutes: OVERRIDE_MINUTES })}</p>
           </div>
         </div>
 
         {!online ? (
           <div className="flex items-start gap-2.5 rounded-card border border-line-hair bg-raised px-3 py-2.5 text-xs text-ink-secondary">
             <WifiOff size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
-            <p>
-              You are offline. The master password is verified on the server, so a release cannot
-              be granted from a device with no signal — call the office to have the shop released.
-            </p>
+            <p>{t('credit.offlineRelease')}</p>
           </div>
         ) : null}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div>
             <label htmlFor="master-password" className="mb-1 block text-xs font-medium text-ink">
-              Admin master password
+              {t('credit.masterPassword')}
             </label>
             <input
               id="master-password"
@@ -120,7 +117,7 @@ export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
               className="w-full rounded-md border border-line-hair bg-surface px-3 py-2 text-sm
                 text-ink outline-none placeholder:text-ink-muted disabled:opacity-50"
               placeholder="••••"
-              {...register('password', { required: 'Enter the master password.' })}
+              {...register('password', { required: t('credit.enterPassword') })}
             />
             {errors.password ? (
               <p className="mt-1 text-xs text-status-critical">{errors.password.message}</p>
@@ -129,7 +126,7 @@ export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
 
           <div>
             <label htmlFor="override-reason" className="mb-1 block text-xs font-medium text-ink">
-              Reason (goes in the audit log)
+              {t('credit.reasonLabel')}
             </label>
             <textarea
               id="override-reason"
@@ -137,8 +134,11 @@ export function MasterPasswordModal({ open, shop, state, onClose, onGranted }) {
               disabled={!online}
               className="w-full resize-none rounded-md border border-line-hair bg-surface px-3 py-2
                 text-sm text-ink outline-none placeholder:text-ink-muted disabled:opacity-50"
-              placeholder="e.g. Shop paid by KBZPay this morning, transfer not yet cleared"
-              {...register('reason', { required: 'A reason is required.', minLength: { value: 8, message: 'Give a little more detail.' } })}
+              placeholder={t('credit.reasonPlaceholder')}
+              {...register('reason', {
+                required: t('credit.reasonRequired'),
+                minLength: { value: 8, message: t('credit.reasonMore') },
+              })}
             />
             {errors.reason ? (
               <p className="mt-1 text-xs text-status-critical">{errors.reason.message}</p>

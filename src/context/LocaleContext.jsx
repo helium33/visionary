@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DEFAULT_LOCALE, LOCALES } from '../i18n/dictionary';
-import { translate } from '../i18n/translate';
+import { setActiveLocale, translate } from '../i18n/translate';
 
 const LocaleContext = createContext(null);
 const STORAGE_KEY = 'visionary.locale';
@@ -18,6 +18,9 @@ function readStoredLocale() {
 
 export function LocaleProvider({ children }) {
   const [locale, setLocaleState] = useState(() => readStoredLocale() ?? DEFAULT_LOCALE);
+  // Set during render, not in an effect: children format dates and messages
+  // in this same render pass, and must not see the previous locale.
+  setActiveLocale(locale);
 
   useEffect(() => {
     // Myanmar script needs its own font fallback stack (see .mm in index.css)
@@ -26,6 +29,7 @@ export function LocaleProvider({ children }) {
     // ones a developer remembered to tag individually.
     document.documentElement.lang = locale === 'mm' ? 'my' : 'en';
     document.body.classList.toggle('mm-locale', locale === 'mm');
+    document.title = translate(locale, 'common.appTitle');
     try {
       window.localStorage.setItem(STORAGE_KEY, locale);
     } catch {

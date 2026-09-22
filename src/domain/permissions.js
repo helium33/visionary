@@ -1,4 +1,4 @@
-import { PERMISSIONS, ROLES, ROLE_LABELS } from '../lib/constants';
+import { PERMISSIONS, ROLES } from '../lib/constants';
 
 /**
  * ---------------------------------------------------------------------------
@@ -18,7 +18,10 @@ const PERMISSION_INFO = {
   'voucher:read': { group: 'Vouchers', label: 'View all vouchers' },
   'voucher:read:own': { group: 'Vouchers', label: 'View own vouchers' },
   'shop:create': { group: 'Shops', label: 'Add shops' },
+  'shop:read': { group: 'Shops', label: 'View all shops' },
   'shop:read:own': { group: 'Shops', label: 'View own shops' },
+  'shop:update': { group: 'Shops', label: 'Edit any shop' },
+  'shop:update:own': { group: 'Shops', label: 'Edit own shops' },
   'payment:collect': { group: 'Credit', label: 'Collect a payment' },
   'payment:create': { group: 'Credit', label: 'Record any payment' },
   'payment:read': { group: 'Credit', label: 'View payments' },
@@ -81,8 +84,4 @@ export function buildPermissionMatrix() {
       group,
       rows: rows.sort((a, b) => a.label.localeCompare(b.label)),
     }));
-}
-
-export function roleLabel(role) {
-  return ROLE_LABELS[role] ?? role;
 }

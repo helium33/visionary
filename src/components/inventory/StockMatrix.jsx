@@ -2,6 +2,8 @@ import { ChevronDown, ChevronRight, Tag } from 'lucide-react';
 import { bandMeta, variantUnits } from '../../domain/inventory';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
+import { productAttributes } from '../../lib/productAttributes';
+import { useLocale } from '../../context/LocaleContext';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { StatusPill } from '../ui/StatusPill';
@@ -15,6 +17,7 @@ import { StatusPill } from '../ui/StatusPill';
  */
 /** The colour row of one model — shared by the table and the phone cards. */
 function ColourGrid({ row, locationId, selected, onSelectVariant, onSelectModel }) {
+  const { t } = useLocale();
   const { product } = row;
   const isSelected = (variant) =>
     selected.some(
@@ -22,19 +25,19 @@ function ColourGrid({ row, locationId, selected, onSelectVariant, onSelectModel 
     );
 
   if (!row.variants.length) {
-    return <p className="text-xs text-ink-secondary">Loading colours…</p>;
+    return <p className="text-xs text-ink-secondary">{t('inventory.loadingColours')}</p>;
   }
 
   return (
     <>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="text-2xs font-medium text-ink">Colours — tick to include in a label run</p>
+        <p className="text-2xs font-medium text-ink">{t('inventory.coloursHint')}</p>
         <button
           type="button"
           onClick={() => onSelectModel(row)}
           className="text-2xs text-ink-secondary underline hover:text-ink"
         >
-          Select all colours
+          {t('inventory.selectAllColours')}
         </button>
       </div>
 
@@ -72,11 +75,11 @@ function ColourGrid({ row, locationId, selected, onSelectVariant, onSelectModel 
                 </span>
                 {out ? (
                   <span className="shrink-0 rounded bg-wash-critical px-1 py-0.5 text-2xs text-status-critical">
-                    out
+                    {t('inventory.outTag')}
                   </span>
                 ) : low ? (
                   <span className="shrink-0 rounded bg-wash-warning px-1 py-0.5 text-2xs text-ink">
-                    low
+                    {t('inventory.lowTag')}
                   </span>
                 ) : null}
               </label>
@@ -86,8 +89,11 @@ function ColourGrid({ row, locationId, selected, onSelectVariant, onSelectModel 
       </ul>
 
       <p className="mt-2 text-2xs text-ink-muted">
-        Barcodes: {row.variants[0]?.barcode ?? '—'} … · landed cost K {fmtMMK(row.unitCost)} / pc ·
-        list K {fmtMMK(row.unitPrice)}
+        {t('inventory.barcodesLine', {
+          barcode: row.variants[0]?.barcode ?? '—',
+          cost: fmtMMK(row.unitCost),
+          price: fmtMMK(row.unitPrice),
+        })}
       </p>
     </>
   );
@@ -103,9 +109,14 @@ export function StockMatrix({
   onSelectModel,
   onPrintModel,
 }) {
+  const { t } = useLocale();
+
   if (!rows.length) {
-    return <EmptyState icon={Tag} title="No models match" description="Try a different filter." />;
+    return <EmptyState icon={Tag} title={t('inventory.noModels')} description={t('inventory.noModelsHint')} />;
   }
+
+  const sinceSale = (row) =>
+    row.daysSinceSale != null ? t('credit.daysShort', { n: row.daysSinceSale }) : t('inventory.neverSold');
 
   const isSelected = (product, variant) =>
     selected.some((s) => s.product.id === product.id && s.variant.colorCode === variant.colorCode);
@@ -137,26 +148,29 @@ export function StockMatrix({
                       {row.product.modelNo}
                     </span>
                     <span className="block text-2xs text-ink-secondary">
-                      {[row.product.material, row.product.shape?.replace('_', ' ')]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {productAttributes(row.product, t, { gender: false })}
                     </span>
                   </span>
                 </button>
                 <StatusPill
                   tone={meta.tone}
-                  label={meta.label}
+                  label={t(`inventory.band.${meta.key}`)}
                   size="sm"
-                  detail={row.daysSinceSale != null ? `${row.daysSinceSale}d` : 'never'}
+                  detail={sinceSale(row)}
                 />
               </div>
 
               <div className="mt-2 flex items-center justify-between gap-3">
                 <p className="text-xs text-ink-secondary">
-                  <span className="font-medium tabular-nums text-ink">{row.units}</span> pcs ·{' '}
-                  {row.variantCount || row.product.colorCount} colours
+                  {t('inventory.unitsColours', {
+                    units: row.units,
+                    colours: row.variantCount || row.product.colorCount,
+                  })}
                   {row.outVariants.length ? (
-                    <span className="text-status-critical"> · {row.outVariants.length} out</span>
+                    <span className="text-status-critical">
+                      {' · '}
+                      {t('inventory.outCount', { count: row.outVariants.length })}
+                    </span>
                   ) : null}
                 </p>
                 <div className="flex items-center gap-2">
@@ -164,7 +178,7 @@ export function StockMatrix({
                     K {fmtMMK(row.costValue, { compact: true })}
                   </span>
                   <Button size="sm" variant="quiet" icon={Tag} onClick={() => onPrintModel(row)}>
-                    Print
+                    {t('inventory.print')}
                   </Button>
                 </div>
               </div>
@@ -189,13 +203,13 @@ export function StockMatrix({
       <table className="w-full min-w-[820px] text-sm">
         <thead>
           <tr className="border-b border-line-hair text-left text-xs text-ink-secondary">
-            <th className="px-4 py-2 font-medium">Model</th>
-            <th className="px-3 py-2 font-medium">Attributes</th>
-            <th className="px-3 py-2 text-right font-medium">Colours</th>
-            <th className="px-3 py-2 text-right font-medium">Units</th>
-            <th className="px-3 py-2 text-right font-medium">At cost</th>
-            <th className="px-3 py-2 font-medium">Last sold</th>
-            <th className="px-4 py-2 text-right font-medium">Labels</th>
+            <th className="px-4 py-2 font-medium">{t('inventory.colModel')}</th>
+            <th className="px-3 py-2 font-medium">{t('inventory.colAttributes')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('inventory.colColours')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('inventory.colUnits')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('inventory.colAtCost')}</th>
+            <th className="px-3 py-2 font-medium">{t('inventory.colLastSold')}</th>
+            <th className="px-4 py-2 text-right font-medium">{t('inventory.colLabels')}</th>
           </tr>
         </thead>
 
@@ -224,9 +238,7 @@ export function StockMatrix({
                 </td>
 
                 <td className="whitespace-nowrap px-3 py-2.5 text-2xs text-ink-secondary">
-                  {[product.material, product.shape?.replace('_', ' '), product.gender]
-                    .filter(Boolean)
-                    .join(' · ')}
+                  {productAttributes(product, t)}
                 </td>
 
                 <td className="px-3 py-2.5 text-right tabular-nums text-ink-secondary">
@@ -234,7 +246,7 @@ export function StockMatrix({
                   {row.outVariants.length ? (
                     <span className="text-2xs text-status-critical">
                       {' · '}
-                      {row.outVariants.length} out
+                      {t('inventory.outCount', { count: row.outVariants.length })}
                     </span>
                   ) : null}
                 </td>
@@ -250,9 +262,9 @@ export function StockMatrix({
                 <td className="whitespace-nowrap px-3 py-2.5">
                   <StatusPill
                     tone={meta.tone}
-                    label={meta.label}
+                    label={t(`inventory.band.${meta.key}`)}
                     size="sm"
-                    detail={row.daysSinceSale != null ? `${row.daysSinceSale}d` : 'never'}
+                    detail={sinceSale(row)}
                   />
                   <p className="mt-0.5 text-2xs text-ink-muted">
                     {product.lastSoldAt ? fmtDate(product.lastSoldAt, 'dd MMM') : '—'}
@@ -265,9 +277,9 @@ export function StockMatrix({
                     variant="quiet"
                     icon={Tag}
                     onClick={() => onPrintModel(row)}
-                    title={`Print labels for every colour of ${product.modelNo}`}
+                    title={t('inventory.printModelTitle', { model: product.modelNo })}
                   >
-                    Print
+                    {t('inventory.print')}
                   </Button>
                 </td>
               </tr>

@@ -1,10 +1,11 @@
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Save } from 'lucide-react';
-import { districtLabel, getDistrictForTownship } from '../../constants/districts';
+import { districtLabel, getDistrictForTownship, townshipLabel } from '../../constants/districts';
 import { PRICE_TIERS, TOWNSHIP_NAMES } from '../../lib/constants';
 import { createShop, updateShop } from '../../services/shopService';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { useToast } from '../ui/Toast';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -17,6 +18,7 @@ import { Modal } from '../ui/Modal';
  */
 export function ShopFormModal({ open, shop, reps = [], onClose, onSaved }) {
   const { user } = useAuth();
+  const { t, locale } = useLocale();
   const toast = useToast();
   const isEdit = Boolean(shop);
   const { register, handleSubmit, watch, reset, formState: { isSubmitting } } = useForm({
@@ -91,15 +93,22 @@ export function ShopFormModal({ open, shop, reps = [], onClose, onSaved }) {
       salesRepId: values.salesRepId || null,
     };
 
-    const result = isEdit
-      ? await updateShop({ shopId: shop.id, patch: payload, actor: user })
-      : await createShop({ ...payload, actor: user });
+    let result;
+    try {
+      result = isEdit
+        ? await updateShop({ shopId: shop.id, patch: payload, actor: user })
+        : await createShop({ ...payload, actor: user });
+    } catch {
+      // A rules rejection or a dropped connection throws rather than
+      // returning { ok: false } — either way the user needs to hear it.
+      result = { ok: false };
+    }
 
     if (!result.ok) {
-      toast.push(result.message ?? 'Could not save this shop.', { tone: 'error' });
+      toast.push(result.message ?? t('shops.saveFailed'), { tone: 'error' });
       return;
     }
-    toast.push(isEdit ? `${values.name} updated.` : `${values.name} added.`, { tone: 'success' });
+    toast.push(t(isEdit ? 'shops.updated' : 'shops.added', { shop: payload.name }), { tone: 'success' });
     onSaved?.(result.shop);
     onClose();
   };
@@ -111,59 +120,59 @@ export function ShopFormModal({ open, shop, reps = [], onClose, onSaved }) {
       open={open}
       onClose={onClose}
       width="max-w-lg"
-      title={isEdit ? `Edit ${shop.name}` : 'Add a shop'}
-      subtitle={isEdit ? shop.code : 'Township decides the district automatically'}
+      title={isEdit ? t('shops.editTitle', { shop: shop.name }) : t('shops.addTitle')}
+      subtitle={isEdit ? shop.code : t('shops.addSubtitle')}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button variant="primary" icon={Save} disabled={isSubmitting} onClick={handleSubmit(onSubmit)}>
-            {isSubmitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add shop'}
+            {isSubmitting ? t('common.saving') : isEdit ? t('shops.saveChanges') : t('shops.addShop')}
           </Button>
         </>
       }
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Shop name">
+          <Field label={t('shops.fieldName')}>
             <input
               className="input"
               autoFocus
               {...register('name', { required: true })}
             />
           </Field>
-          <Field label="Name (Myanmar)">
+          <Field label={t('shops.fieldNameMM')}>
             <input className="input" {...register('nameMM')} />
           </Field>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Owner name">
+          <Field label={t('shops.fieldOwner')}>
             <input className="input" {...register('ownerName')} />
           </Field>
-          <Field label="Phone">
+          <Field label={t('shops.fieldPhone')}>
             <input className="input" {...register('phone')} />
           </Field>
         </div>
 
         <Field
-          label="Township"
-          hint={district ? `${districtLabel(district)}` : 'District unknown — check the spelling'}
+          label={t('shops.fieldTownship')}
+          hint={district ? districtLabel(district, locale) : t('shops.districtUnknown')}
         >
           <select className="input" {...register('township', { required: true })}>
             {TOWNSHIP_NAMES.map((name) => (
               <option key={name} value={name}>
-                {name}
+                {townshipLabel(name, locale)}
               </option>
             ))}
           </select>
         </Field>
 
         {reps.length > 0 ? (
-          <Field label="Sales rep">
+          <Field label={t('shops.fieldRep')}>
             <select className="input" disabled={user?.role === 'SALES'} {...register('salesRepId')}>
-              <option value="">Unassigned</option>
+              <option value="">{t('shops.unassigned')}</option>
               {reps.map((rep) => (
                 <option key={rep.id} value={rep.id}>
                   {rep.name}
@@ -174,16 +183,16 @@ export function ShopFormModal({ open, shop, reps = [], onClose, onSaved }) {
         ) : null}
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Price tier">
+          <Field label={t('shops.fieldTier')}>
             <select className="input" disabled={!canEditTerms} {...register('priceTier')}>
               {Object.values(PRICE_TIERS).map((tier) => (
                 <option key={tier.key} value={tier.key}>
-                  {tier.label}
+                  {t(`labels.priceTier.${tier.key}`)}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Credit limit (K)">
+          <Field label={t('shops.fieldLimit')}>
             <input
               inputMode="numeric"
               className="input"
@@ -191,7 +200,7 @@ export function ShopFormModal({ open, shop, reps = [], onClose, onSaved }) {
               {...register('creditLimit')}
             />
           </Field>
-          <Field label="Credit term (days)">
+          <Field label={t('shops.fieldTerm')}>
             <input
               inputMode="numeric"
               className="input"
@@ -202,10 +211,7 @@ export function ShopFormModal({ open, shop, reps = [], onClose, onSaved }) {
         </div>
 
         {!canEditTerms ? (
-          <p className="text-2xs text-ink-muted">
-            Only an admin, accountant, or this shop's own rep can change price tier or credit
-            terms.
-          </p>
+          <p className="text-2xs text-ink-muted">{t('shops.termsLocked')}</p>
         ) : null}
       </form>
     </Modal>

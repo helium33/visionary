@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Copy, Printer, Send } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 import { buildVoucherText, copyText, nativeShare, shareTo } from '../../services/statementService';
 import { COMPANY } from '../../lib/constants';
+import { townshipLabel } from '../../constants/districts';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
 import { useToast } from '../ui/Toast';
@@ -19,18 +21,23 @@ import { Modal } from '../ui/Modal';
  * generation reliably gets wrong.
  */
 const FORMATS = {
-  A4: { label: 'A4', page: 'A4', width: '190mm', font: '11pt' },
-  A5: { label: 'A5', page: 'A5', width: '128mm', font: '10pt' },
-  THERMAL: { label: '80mm thermal', page: '80mm auto', width: '72mm', font: '8.5pt' },
+  A4: { page: 'A4', width: '190mm', font: '11pt' },
+  A5: { page: 'A5', width: '128mm', font: '10pt' },
+  THERMAL: { page: '80mm auto', width: '72mm', font: '8.5pt' },
 };
 
+const formatLabel = (key, t) => (key === 'THERMAL' ? t('vouchers.formatThermal') : key);
+
 export function VoucherPrint({ open, voucher, shop, onClose }) {
+  const { t, locale } = useLocale();
   const toast = useToast();
   const [format, setFormat] = useState('A5');
 
   const text = useMemo(
     () => (voucher && shop ? buildVoucherText(voucher, shop) : ''),
-    [voucher, shop],
+    // locale: the message is built in the reader's language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [voucher, shop, locale],
   );
 
   if (!open || !voucher) return null;
@@ -39,7 +46,7 @@ export function VoucherPrint({ open, voucher, shop, onClose }) {
 
   const onCopy = async () => {
     const ok = await copyText(text);
-    toast.push(ok ? 'Voucher copied.' : 'Could not copy — select the text and copy manually.', {
+    toast.push(t(ok ? 'vouchers.copied' : 'common.copyFailed'), {
       tone: ok ? 'success' : 'error',
     });
   };
@@ -49,25 +56,25 @@ export function VoucherPrint({ open, voucher, shop, onClose }) {
       open={open}
       onClose={onClose}
       width="max-w-2xl"
-      title={`Voucher ${voucher.voucherNo}`}
+      title={t('vouchers.printTitle', { no: voucher.voucherNo })}
       subtitle={`${shop.name} · K ${fmtMMK(voucher.grandTotal)}`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Done
+            {t('common.done')}
           </Button>
           <Button variant="secondary" icon={Printer} onClick={() => window.print()}>
-            Print {spec.label}
+            {t('vouchers.print', { format: formatLabel(format, t) })}
           </Button>
           <Button
             variant="primary"
             icon={Send}
             onClick={async () => {
-              const shared = await nativeShare(`Voucher ${voucher.voucherNo}`, text);
+              const shared = await nativeShare(t('vouchers.printTitle', { no: voucher.voucherNo }), text);
               if (!shared) await onCopy();
             }}
           >
-            Share
+            {t('common.share')}
           </Button>
         </>
       }
@@ -79,7 +86,7 @@ export function VoucherPrint({ open, voucher, shop, onClose }) {
 
       <div className="space-y-4">
         <div className="flex gap-1 rounded-md border border-line-hair p-0.5 text-xs">
-          {Object.entries(FORMATS).map(([key, value]) => (
+          {Object.keys(FORMATS).map((key) => (
             <button
               key={key}
               type="button"
@@ -89,7 +96,7 @@ export function VoucherPrint({ open, voucher, shop, onClose }) {
                 format === key ? 'bg-ink text-plane' : 'text-ink-secondary hover:bg-raised'
               }`}
             >
-              {value.label}
+              {formatLabel(key, t)}
             </button>
           ))}
         </div>
@@ -109,7 +116,7 @@ export function VoucherPrint({ open, voucher, shop, onClose }) {
             Telegram
           </Button>
           <Button size="sm" variant="quiet" icon={Copy} onClick={onCopy}>
-            Copy text
+            {t('common.copyText')}
           </Button>
         </div>
       </div>
@@ -125,6 +132,7 @@ export function VoucherPrint({ open, voucher, shop, onClose }) {
 
 /** The document itself — black on white, identical on screen and on paper. */
 function VoucherSheet({ voucher, shop, compact }) {
+  const { t, locale } = useLocale();
   const cell = {
     padding: compact ? '2px 1px' : '4px 2px',
     borderBottom: '1px solid #ddd',
@@ -157,14 +165,14 @@ function VoucherSheet({ voucher, shop, compact }) {
       >
         <div>
           <p style={{ margin: 0, fontWeight: 700 }}>
-            {isConsignment ? 'CONSIGNMENT NOTE' : 'SALES VOUCHER'}
+            {t(isConsignment ? 'vouchers.sheet.consignmentNote' : 'vouchers.sheet.salesVoucher')}
           </p>
           <p style={{ margin: 0 }}>{voucher.voucherNo}</p>
         </div>
         <div style={{ textAlign: compact ? 'left' : 'right' }}>
-          <p style={{ margin: 0 }}>Date: {fmtDate(voucher.issueDate)}</p>
+          <p style={{ margin: 0 }}>{t('vouchers.sheet.date', { date: fmtDate(voucher.issueDate) })}</p>
           {!isConsignment ? (
-            <p style={{ margin: 0, fontWeight: 700 }}>Due: {fmtDate(voucher.dueDate)}</p>
+            <p style={{ margin: 0, fontWeight: 700 }}>{t('vouchers.sheet.due', { date: fmtDate(voucher.dueDate) })}</p>
           ) : null}
         </div>
       </div>
@@ -173,17 +181,17 @@ function VoucherSheet({ voucher, shop, compact }) {
         <strong>{shop.name}</strong>
         {shop.nameMM ? <span className="mm"> ({shop.nameMM})</span> : null}
         <br />
-        {shop.township} · {shop.ownerName} · {shop.phone}
+        {townshipLabel(shop.township, locale)} · {shop.ownerName} · {shop.phone}
       </p>
 
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '8px' }}>
         <thead>
           <tr>
-            <th style={{ ...cell, textAlign: 'left', borderBottom: '1px solid #000' }}>Model</th>
-            <th style={{ ...cell, textAlign: 'left', borderBottom: '1px solid #000' }}>Colour</th>
-            <th style={{ ...cell, textAlign: 'right', borderBottom: '1px solid #000' }}>Qty</th>
-            <th style={{ ...cell, textAlign: 'right', borderBottom: '1px solid #000' }}>Price</th>
-            <th style={{ ...cell, textAlign: 'right', borderBottom: '1px solid #000' }}>Amount</th>
+            <th style={{ ...cell, textAlign: 'left', borderBottom: '1px solid #000' }}>{t('vouchers.sheet.colModel')}</th>
+            <th style={{ ...cell, textAlign: 'left', borderBottom: '1px solid #000' }}>{t('vouchers.sheet.colColour')}</th>
+            <th style={{ ...cell, textAlign: 'right', borderBottom: '1px solid #000' }}>{t('vouchers.sheet.colQty')}</th>
+            <th style={{ ...cell, textAlign: 'right', borderBottom: '1px solid #000' }}>{t('vouchers.sheet.colPrice')}</th>
+            <th style={{ ...cell, textAlign: 'right', borderBottom: '1px solid #000' }}>{t('vouchers.sheet.colAmount')}</th>
           </tr>
         </thead>
         <tbody>
@@ -203,18 +211,18 @@ function VoucherSheet({ voucher, shop, compact }) {
 
       <table style={{ width: '100%', marginTop: '8px', borderCollapse: 'collapse' }}>
         <tbody>
-          <SheetRow label="Subtotal" value={voucher.subtotal} compact={compact} />
+          <SheetRow label={t('vouchers.sheet.subtotal')} value={voucher.subtotal} compact={compact} />
           {voucher.discount > 0 ? (
-            <SheetRow label="Discount" value={-voucher.discount} compact={compact} />
+            <SheetRow label={t('vouchers.sheet.discount')} value={-voucher.discount} compact={compact} />
           ) : null}
-          <SheetRow label="This voucher" value={voucher.grandTotal} bold compact={compact} />
+          <SheetRow label={t('vouchers.thisVoucher')} value={voucher.grandTotal} bold compact={compact} />
           {!isConsignment ? (
             <>
-              <SheetRow label="Previous balance" value={voucher.previousBalance} compact={compact} />
+              <SheetRow label={t('vouchers.previousBalance')} value={voucher.previousBalance} compact={compact} />
               {voucher.paymentAtIssue > 0 ? (
-                <SheetRow label="Paid now" value={-voucher.paymentAtIssue} compact={compact} />
+                <SheetRow label={t('vouchers.sheet.paidNow')} value={-voucher.paymentAtIssue} compact={compact} />
               ) : null}
-              <SheetRow label="TOTAL OUTSTANDING" value={voucher.newBalance} bold rule compact={compact} />
+              <SheetRow label={t('vouchers.sheet.totalOutstanding')} value={voucher.newBalance} bold rule compact={compact} />
             </>
           ) : null}
         </tbody>
@@ -222,17 +230,19 @@ function VoucherSheet({ voucher, shop, compact }) {
 
       {isConsignment ? (
         <p style={{ marginTop: '8px', fontSize: compact ? '7.5pt' : '9pt' }}>
-          Sample stock on consignment. Not invoiced and carries no credit term until converted to a
-          sales voucher.
+          {t('vouchers.sheet.consignmentTerms')}
         </p>
       ) : (
         <p style={{ marginTop: '8px', fontSize: compact ? '7.5pt' : '9pt' }}>
-          Payment due within {voucher.termDays} days ({fmtDate(voucher.dueDate)}). Accounts past
-          term are suspended for new orders until settled.
-          <br />
-          <span className="mm">
-            ရက်ပေါင်း {voucher.termDays} ရက်အတွင်း ပေးချေရပါမည်။
-          </span>
+          {t('vouchers.sheet.paymentTerms', { days: voucher.termDays, date: fmtDate(voucher.dueDate) })}
+          {/* The English sheet keeps a Burmese line for the shop; the Burmese
+              sheet already says it in full. */}
+          {locale === 'en' ? (
+            <>
+              <br />
+              <span className="mm">ရက်ပေါင်း {voucher.termDays} ရက်အတွင်း ပေးချေရပါမည်။</span>
+            </>
+          ) : null}
         </p>
       )}
 
@@ -244,8 +254,8 @@ function VoucherSheet({ voucher, shop, compact }) {
           fontSize: compact ? '7.5pt' : '9pt',
         }}
       >
-        <span>Received by ____________</span>
-        <span>{voucher.createdByName ?? 'Sales rep'}</span>
+        <span>{t('vouchers.sheet.receivedBy')}</span>
+        <span>{voucher.createdByName ?? t('labels.role.SALES')}</span>
       </div>
     </div>
   );

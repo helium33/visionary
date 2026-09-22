@@ -6,6 +6,12 @@ import { AuthProvider } from './context/AuthContext';
 import { LocaleProvider } from './context/LocaleContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppToaster } from './components/ui/Toast';
+// Myanmar subset only, one file per weight the UI uses; the browser fetches a
+// weight the first time Burmese text needs it (see the .mm rules in index.css).
+import '@fontsource/noto-sans-myanmar/myanmar-400.css';
+import '@fontsource/noto-sans-myanmar/myanmar-500.css';
+import '@fontsource/noto-sans-myanmar/myanmar-600.css';
+import '@fontsource/noto-sans-myanmar/myanmar-700.css';
 import './index.css';
 
 /**

@@ -3,14 +3,16 @@ import { FileText, Search } from 'lucide-react';
 import { subDays } from 'date-fns';
 import { actionMeta, describeAuditEntry, entityLabel, filterAuditLogs, sortAuditLogs } from '../../domain/audit';
 import { fmtDateTime } from '../../lib/dates';
+import { useLocale } from '../../context/LocaleContext';
+import { tOr } from '../../i18n/translate';
 import { EmptyState } from '../ui/EmptyState';
 import { StatusPill } from '../ui/StatusPill';
 
 const PERIODS = [
-  { key: 7, label: '7 days' },
-  { key: 30, label: '30 days' },
-  { key: 90, label: '90 days' },
-  { key: 0, label: 'All time' },
+  { key: 7, label: 'admin.last7' },
+  { key: 30, label: 'common.last30' },
+  { key: 90, label: 'common.last90' },
+  { key: 0, label: 'admin.allTime' },
 ];
 
 /**
@@ -20,6 +22,7 @@ const PERIODS = [
  * happened.
  */
 export function AuditLogTable({ entries, actors, today }) {
+  const { t } = useLocale();
   const [days, setDays] = useState(30);
   const [actorId, setActorId] = useState('ALL');
   const [action, setAction] = useState('ALL');
@@ -64,18 +67,18 @@ export function AuditLogTable({ entries, actors, today }) {
                 days === period.key ? 'bg-ink text-plane' : 'text-ink-secondary hover:bg-raised'
               }`}
             >
-              {period.label}
+              {t(period.label)}
             </button>
           ))}
         </div>
 
         <select
-          aria-label="Filter by actor"
+          aria-label={t('admin.filterActor')}
           value={actorId}
           onChange={(e) => setActorId(e.target.value)}
           className="h-7 rounded border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
         >
-          <option value="ALL">Everyone</option>
+          <option value="ALL">{t('admin.everyone')}</option>
           {actors.map((actor) => (
             <option key={actor.id} value={actor.id}>
               {actor.name}
@@ -84,21 +87,21 @@ export function AuditLogTable({ entries, actors, today }) {
         </select>
 
         <select
-          aria-label="Filter by action"
+          aria-label={t('admin.filterAction')}
           value={action}
           onChange={(e) => setAction(e.target.value)}
           className="h-7 rounded border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
         >
-          <option value="ALL">Every action</option>
+          <option value="ALL">{t('admin.everyAction')}</option>
           {actions.map((key) => (
             <option key={key} value={key}>
-              {actionMeta(key).label}
+              {actionMeta(key, t).label}
             </option>
           ))}
         </select>
 
         <label className="relative ml-auto">
-          <span className="sr-only">Search the audit log</span>
+          <span className="sr-only">{t('admin.searchLog')}</span>
           <Search
             size={13}
             className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-muted"
@@ -107,7 +110,7 @@ export function AuditLogTable({ entries, actors, today }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search"
+            placeholder={t('admin.search')}
             className="h-7 w-full min-w-[8rem] rounded border border-line-hair bg-surface pl-7 pr-2 text-xs text-ink outline-none sm:w-40"
           />
         </label>
@@ -116,8 +119,8 @@ export function AuditLogTable({ entries, actors, today }) {
       {rows.length === 0 ? (
         <EmptyState
           icon={FileText}
-          title="Nothing matches"
-          description="Try a wider date range or a different filter."
+          title={t('admin.nothingMatches')}
+          description={t('admin.nothingMatchesHint')}
         />
       ) : (
         <>
@@ -131,15 +134,15 @@ export function AuditLogTable({ entries, actors, today }) {
             <table className="w-full min-w-[820px] text-sm">
               <thead>
                 <tr className="border-b border-line-hair text-left text-2xs text-ink-secondary">
-                  <th className="px-4 py-2 font-medium">When</th>
-                  <th className="px-3 py-2 font-medium">Who</th>
-                  <th className="px-3 py-2 font-medium">Action</th>
-                  <th className="px-3 py-2 font-medium">What happened</th>
+                  <th className="px-4 py-2 font-medium">{t('admin.colWhen')}</th>
+                  <th className="px-3 py-2 font-medium">{t('admin.colWho')}</th>
+                  <th className="px-3 py-2 font-medium">{t('admin.colAction')}</th>
+                  <th className="px-3 py-2 font-medium">{t('admin.colWhat')}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((entry) => {
-                  const meta = actionMeta(entry.action);
+                  const meta = actionMeta(entry.action, t);
                   return (
                     <tr key={entry.id} className="border-b border-line-hair last:border-0 hover:bg-raised">
                       <td className="whitespace-nowrap px-4 py-2.5 text-ink-secondary">
@@ -147,18 +150,20 @@ export function AuditLogTable({ entries, actors, today }) {
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">
                         <p className="text-ink">{entry.actorName}</p>
-                        <p className="text-2xs text-ink-secondary">{entry.actorRole}</p>
+                        <p className="text-2xs text-ink-secondary">
+                          {entry.actorRole ? tOr(t, `labels.role.${entry.actorRole}`, entry.actorRole) : null}
+                        </p>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5">
                         <StatusPill tone={meta.tone} label={meta.label} size="sm" />
                       </td>
                       <td className="px-3 py-2.5 text-ink">
-                        {describeAuditEntry(entry)}
+                        {describeAuditEntry(entry, t)}
                         {entry.reason ? (
                           <p className="mt-0.5 text-2xs text-ink-secondary">&ldquo;{entry.reason}&rdquo;</p>
                         ) : null}
                         <p className="mt-0.5 text-2xs text-ink-muted">
-                          {entityLabel(entry.entity)} · {entry.entityId}
+                          {entityLabel(entry.entity, t)} · {entry.entityId}
                         </p>
                       </td>
                     </tr>
@@ -174,7 +179,8 @@ export function AuditLogTable({ entries, actors, today }) {
 }
 
 function EntryCard({ entry }) {
-  const meta = actionMeta(entry.action);
+  const { t } = useLocale();
+  const meta = actionMeta(entry.action, t);
   return (
     <li className="px-4 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -184,12 +190,12 @@ function EntryCard({ entry }) {
         </div>
         <StatusPill tone={meta.tone} label={meta.label} size="sm" />
       </div>
-      <p className="mt-1.5 text-sm text-ink">{describeAuditEntry(entry)}</p>
+      <p className="mt-1.5 text-sm text-ink">{describeAuditEntry(entry, t)}</p>
       {entry.reason ? (
         <p className="mt-0.5 text-2xs text-ink-secondary">&ldquo;{entry.reason}&rdquo;</p>
       ) : null}
       <p className="mt-0.5 text-2xs text-ink-muted">
-        {entityLabel(entry.entity)} · {entry.entityId}
+        {entityLabel(entry.entity, t)} · {entry.entityId}
       </p>
     </li>
   );

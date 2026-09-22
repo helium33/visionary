@@ -8,6 +8,7 @@ import {
 import { COL, db, isDemoMode } from '../lib/firebase';
 import { buildVoucherDoc } from '../domain/voucher';
 import { logAudit } from './auditService';
+import { tNow } from '../i18n/translate';
 
 /**
  * ---------------------------------------------------------------------------
@@ -38,7 +39,7 @@ export async function createVoucher({
   issueDate = new Date(),
 }) {
   if (!lines.length) {
-    return { ok: false, message: 'Add at least one item before saving.' };
+    return { ok: false, message: tNow('vouchers.errNoItems') };
   }
 
   const voucher = buildVoucherDoc({

@@ -154,16 +154,19 @@
     font-size: 14px;
   }
 
-  /* Myanmar script fallback so shop names render on any device. */
+  /* Burmese glyphs come from the bundled Noto Sans Myanmar (main.jsx), so a
+     phone whose system font is Zawgyi — or has no Myanmar font — still shows
+     Unicode Burmese correctly. That font carries only the Myanmar block, so
+     Latin text and digits fall through to the same system font as English. */
   .mm {
-    font-family: 'Padauk', 'Myanmar Text', 'Noto Sans Myanmar', system-ui, sans-serif;
+    font-family: 'Noto Sans Myanmar', system-ui, -apple-system, 'Segoe UI', 'Myanmar Text', 'Padauk', sans-serif;
   }
 
   /* Whole-app Myanmar locale: LocaleContext toggles this on <body> so every
      translated string gets the Myanmar font stack, not only the elements a
      developer remembered to tag with .mm individually. */
   body.mm-locale {
-    font-family: 'Padauk', 'Myanmar Text', 'Noto Sans Myanmar', system-ui, sans-serif;
+    font-family: 'Noto Sans Myanmar', system-ui, -apple-system, 'Segoe UI', 'Myanmar Text', 'Padauk', sans-serif;
   }
 
   :focus-visible {

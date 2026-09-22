@@ -73,7 +73,7 @@ describe('describeAuditEntry', () => {
     const result = describeAuditEntry(
       entry({ action: 'SHOP_UPDATE', entity: 'shops', entityId: 'SH-001', after: { priceTier: 'VIP', creditLimit: 5_000_000 } }),
     );
-    expect(result).toBe('Updated SH-001 — priceTier, creditLimit');
+    expect(result).toBe('Updated SH-001 — price tier, credit limit');
   });
 });
 

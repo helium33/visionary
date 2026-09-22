@@ -3,6 +3,7 @@ import { computeLandedCost } from '../../domain/landedCost';
 import { poArrivalState } from '../../domain/purchasing';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
+import { useLocale } from '../../context/LocaleContext';
 import { EmptyState } from '../ui/EmptyState';
 import { StatusPill } from '../ui/StatusPill';
 
@@ -12,12 +13,14 @@ import { StatusPill } from '../ui/StatusPill';
  * shows the new number without waiting on a write-back.
  */
 export function PoTable({ orders, today, onOpen }) {
+  const { t } = useLocale();
+
   if (!orders.length) {
     return (
       <EmptyState
         icon={Ship}
-        title="No purchase orders"
-        description="Raise one to start tracking factory cost and freight."
+        title={t('purchasing.noOrders')}
+        description={t('purchasing.noOrdersHint')}
       />
     );
   }
@@ -38,14 +41,17 @@ export function PoTable({ orders, today, onOpen }) {
                   </div>
                   <StatusPill
                     tone={arrival.tone}
-                    label={arrival.label}
+                    label={t(`purchasing.status.${arrival.key}`)}
                     size="sm"
-                    detail={arrival.overdue ? `${arrival.daysLate}d late` : null}
+                    detail={arrival.overdue ? t('purchasing.daysLate', { n: arrival.daysLate }) : null}
                   />
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3 text-xs">
                   <span className="text-ink-secondary">
-                    {costed.totalQty} pcs · K {fmtMMK(costed.averageUnitCost)}/pc
+                    {t('purchasing.piecesAtCost', {
+                      pieces: costed.totalQty,
+                      cost: fmtMMK(costed.averageUnitCost),
+                    })}
                   </span>
                   <span className="font-medium tabular-nums text-ink">
                     K {fmtMMK(costed.totalLanded, { compact: true })}
@@ -61,14 +67,14 @@ export function PoTable({ orders, today, onOpen }) {
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-line-hair text-left text-xs text-ink-secondary">
-              <th className="px-4 py-2 font-medium">PO</th>
-              <th className="px-3 py-2 font-medium">Supplier</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium">Expected / received</th>
-              <th className="px-3 py-2 text-right font-medium">Pieces</th>
-              <th className="px-3 py-2 text-right font-medium">Factory</th>
-              <th className="px-3 py-2 text-right font-medium">Charges</th>
-              <th className="px-4 py-2 text-right font-medium">Landed</th>
+              <th className="px-4 py-2 font-medium">{t('purchasing.colPo')}</th>
+              <th className="px-3 py-2 font-medium">{t('purchasing.colSupplier')}</th>
+              <th className="px-3 py-2 font-medium">{t('purchasing.colStatus')}</th>
+              <th className="px-3 py-2 font-medium">{t('purchasing.colExpected')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('purchasing.colPieces')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('purchasing.colFactory')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('purchasing.colCharges')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('purchasing.colLanded')}</th>
             </tr>
           </thead>
           <tbody>
@@ -94,7 +100,7 @@ export function PoTable({ orders, today, onOpen }) {
                       {po.poNo}
                     </button>
                     <p className="text-2xs text-ink-muted">
-                      {po.orderedAt ? fmtDate(po.orderedAt, 'dd MMM yy') : 'not ordered'}
+                      {po.orderedAt ? fmtDate(po.orderedAt, 'dd MMM yy') : t('purchasing.notOrdered')}
                     </p>
                   </td>
                   <td className="px-3 py-2.5">
@@ -106,9 +112,9 @@ export function PoTable({ orders, today, onOpen }) {
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <StatusPill
                       tone={arrival.tone}
-                      label={arrival.label}
+                      label={t(`purchasing.status.${arrival.key}`)}
                       size="sm"
-                      detail={arrival.overdue ? `${arrival.daysLate}d late` : null}
+                      detail={arrival.overdue ? t('purchasing.daysLate', { n: arrival.daysLate }) : null}
                     />
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-ink-secondary">
@@ -133,7 +139,7 @@ export function PoTable({ orders, today, onOpen }) {
                       {fmtMMK(costed.totalLanded)}
                     </span>
                     <span className="block text-2xs tabular-nums text-ink-muted">
-                      K {fmtMMK(costed.averageUnitCost)} / pc
+                      {t('purchasing.perPcK', { amount: fmtMMK(costed.averageUnitCost) })}
                     </span>
                   </td>
                 </tr>

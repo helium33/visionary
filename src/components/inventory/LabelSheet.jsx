@@ -1,6 +1,6 @@
 import { buildQrPayload, buildSku } from '../../domain/barcode';
-import { PRICE_TIERS } from '../../lib/constants';
 import { fmtMMK } from '../../lib/format';
+import { useLocale } from '../../context/LocaleContext';
 import { BarcodeSvg, QrSvg } from './CodeSvg';
 
 /**
@@ -12,11 +12,12 @@ import { BarcodeSvg, QrSvg } from './CodeSvg';
  * sheet at whatever size the browser's DPI assumption produced, and every
  * sticker would be misaligned.
  */
+// Display names live in the dictionary under inventory.size.<key>.
 export const LABEL_SIZES = {
-  SMALL: { key: 'SMALL', label: '40 × 25 mm', width: 40, height: 25, perRow: 4, code: 'barcode' },
-  MEDIUM: { key: 'MEDIUM', label: '50 × 30 mm', width: 50, height: 30, perRow: 3, code: 'both' },
-  LARGE: { key: 'LARGE', label: '70 × 40 mm', width: 70, height: 40, perRow: 2, code: 'both' },
-  THERMAL: { key: 'THERMAL', label: '58 mm roll', width: 58, height: 40, perRow: 1, code: 'barcode' },
+  SMALL: { key: 'SMALL', width: 40, height: 25, perRow: 4, code: 'barcode' },
+  MEDIUM: { key: 'MEDIUM', width: 50, height: 30, perRow: 3, code: 'both' },
+  LARGE: { key: 'LARGE', width: 70, height: 40, perRow: 2, code: 'both' },
+  THERMAL: { key: 'THERMAL', width: 58, height: 40, perRow: 1, code: 'barcode' },
 };
 
 /**
@@ -25,6 +26,7 @@ export const LABEL_SIZES = {
  * code is what the scanner needs.
  */
 export function Label({ product, variant, size, codeType, priceTier = 'STANDARD', showPrice = true }) {
+  const { t } = useLocale();
   const price = product.pricing?.[priceTier] ?? product.pricing?.STANDARD ?? 0;
   const sku = buildSku(product, variant);
   const wantsBarcode = codeType === 'barcode' || codeType === 'both';
@@ -91,7 +93,7 @@ export function Label({ product, variant, size, codeType, priceTier = 'STANDARD'
           {priceTier !== 'STANDARD' ? (
             <span style={{ fontSize: '6pt', fontWeight: 400 }}>
               {' '}
-              {PRICE_TIERS[priceTier]?.label}
+              {t(`labels.priceTier.${priceTier}`)}
             </span>
           ) : null}
         </p>

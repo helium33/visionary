@@ -1,4 +1,5 @@
 import { CalendarClock, Percent, Save, Wallet } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 import { DISCOUNT_MODES } from '../../domain/voucher';
 import { PAYMENT_METHODS } from '../../lib/constants';
 import { fmtDate } from '../../lib/dates';
@@ -28,17 +29,18 @@ export function VoucherTotals({
   canSave,
   onSave,
 }) {
+  const { t } = useLocale();
   const isConsignment = type === 'CONSIGNMENT';
 
   return (
     <div className="space-y-4">
       <div className="space-y-1.5">
-        <Row label={`Items (${totals.pieces} pcs)`} value={totals.subtotal} />
+        <Row label={t('vouchers.itemsPieces', { pieces: totals.pieces })} value={totals.subtotal} />
         {totals.tierSavings > 0 ? (
           <>
-            <Row label="Wholesale tier saving" value={-totals.tierSavings} tone="good" />
+            <Row label={t('vouchers.tierSaving')} value={-totals.tierSavings} tone="good" />
             <p className="text-2xs text-ink-muted">
-              List price would be K {fmtMMK(totals.listSubtotal)}
+              {t('vouchers.listWouldBe', { amount: fmtMMK(totals.listSubtotal) })}
             </p>
           </>
         ) : null}
@@ -47,7 +49,7 @@ export function VoucherTotals({
       {/* Voucher-level discount, on top of whatever tier the lines earned. */}
       <div>
         <label htmlFor="voucher-discount" className="mb-1 block text-xs font-medium text-ink">
-          Extra discount
+          {t('vouchers.extraDiscount')}
         </label>
         <div className="flex gap-1.5">
           <div className="flex overflow-hidden rounded-md border border-line-hair">
@@ -80,20 +82,20 @@ export function VoucherTotals({
         </div>
         {totals.discountAmount > 0 ? (
           <p className="mt-1 text-2xs text-ink-secondary">
-            −K {fmtMMK(totals.discountAmount)} off this voucher
+            {t('vouchers.offThisVoucher', { amount: fmtMMK(totals.discountAmount) })}
           </p>
         ) : null}
       </div>
 
       <div className="space-y-1.5 border-t border-line-hair pt-3">
-        <Row label="This voucher" value={totals.grandTotal} strong />
-        <Row label="Previous balance" value={totals.previousBalance} />
+        <Row label={t('vouchers.thisVoucher')} value={totals.grandTotal} strong />
+        <Row label={t('vouchers.previousBalance')} value={totals.previousBalance} />
       </div>
 
       {!isConsignment ? (
         <div>
           <label htmlFor="voucher-payment" className="mb-1 block text-xs font-medium text-ink">
-            Payment received now
+            {t('vouchers.paymentNow')}
           </label>
           <div className="flex gap-1.5">
             <input
@@ -106,14 +108,14 @@ export function VoucherTotals({
                 text-sm tabular-nums text-ink outline-none"
             />
             <select
-              aria-label="Payment method"
+              aria-label={t('vouchers.paymentMethod')}
               value={paymentMethod}
               onChange={(e) => onPaymentMethodChange(e.target.value)}
               className="h-9 w-28 rounded-md border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
             >
               {PAYMENT_METHODS.map((m) => (
                 <option key={m.key} value={m.key}>
-                  {m.label}
+                  {t(`labels.paymentMethod.${m.key}`)}
                 </option>
               ))}
             </select>
@@ -128,7 +130,7 @@ export function VoucherTotals({
                   onClick={() => onPaymentChange(String(value))}
                   className="rounded border border-line-hair px-2 py-0.5 text-2xs text-ink-secondary hover:bg-raised hover:text-ink"
                 >
-                  {i === 0 ? 'This voucher' : 'Settle all'} · K {fmtMMK(value, { compact: true })}
+                  {t(i === 0 ? 'vouchers.thisVoucher' : 'vouchers.settleAll')} · K {fmtMMK(value, { compact: true })}
                 </button>
               ))}
           </div>
@@ -139,7 +141,7 @@ export function VoucherTotals({
         <div className="flex items-baseline justify-between gap-3">
           <span className="flex items-center gap-1.5 text-xs font-medium text-ink">
             <Wallet size={13} aria-hidden="true" />
-            {isConsignment ? 'Consignment value' : 'New outstanding balance'}
+            {t(isConsignment ? 'vouchers.consignmentValue' : 'vouchers.newBalance')}
           </span>
           <span className="text-xl font-semibold tabular-nums text-ink">
             K {fmtMMK(isConsignment ? totals.grandTotal : totals.newBalance)}
@@ -148,13 +150,9 @@ export function VoucherTotals({
 
         <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-ink-secondary">
           <CalendarClock size={12} aria-hidden="true" />
-          {isConsignment ? (
-            <>Sample stock — no debt and no due date until it converts to a sale.</>
-          ) : (
-            <>
-              Due {fmtDate(totals.dueDate)} — {totals.termDays} days from today
-            </>
-          )}
+          {isConsignment
+            ? t('vouchers.consignmentNote')
+            : t('vouchers.dueIn', { date: fmtDate(totals.dueDate), days: totals.termDays })}
         </p>
       </div>
 
@@ -166,7 +164,7 @@ export function VoucherTotals({
         disabled={!canSave || saving}
         onClick={onSave}
       >
-        {saving ? 'Saving…' : isConsignment ? 'Record consignment' : 'Issue voucher'}
+        {t(saving ? 'common.saving' : isConsignment ? 'vouchers.recordConsignment' : 'vouchers.issueVoucher')}
       </Button>
     </div>
   );

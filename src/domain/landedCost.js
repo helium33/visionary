@@ -41,12 +41,7 @@ export const QTY_BASIS = {
   RECEIVED: 'RECEIVED',
 };
 
-export const CHARGE_LABELS = {
-  cargo: 'Cargo / freight',
-  transport: 'Local transport',
-  labeling: 'Labeling',
-  customs: 'Customs & duty',
-};
+// Display names for CHARGE_KEYS live in the dictionary (purchasing.charge.<key>).
 
 /**
  * @param {object}   po

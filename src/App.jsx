@@ -83,7 +83,7 @@ function AuthedApp() {
           <Route path="/purchasing" element={<Purchasing />} />
           <Route path="/logistics" element={<CarStock />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path="*" element={<Placeholder title="Not found" />} />
+          <Route path="*" element={<Placeholder />} />
         </Routes>
       </Suspense>
     </AppShell>

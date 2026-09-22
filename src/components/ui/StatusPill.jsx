@@ -1,4 +1,5 @@
 import { AlertTriangle, CheckCircle2, Clock, Lock, ShieldCheck } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 import { CREDIT_STATUS } from '../../domain/credit';
 
 /**
@@ -15,14 +16,17 @@ const TONES = {
 };
 
 const STATUS_TONE = {
-  [CREDIT_STATUS.ACTIVE]: ['good', 'Active'],
-  [CREDIT_STATUS.WATCH]: ['warning', 'Due soon'],
-  [CREDIT_STATUS.OVERDUE]: ['serious', 'Overdue'],
-  [CREDIT_STATUS.LOCKED]: ['critical', 'Locked'],
+  [CREDIT_STATUS.ACTIVE]: 'good',
+  [CREDIT_STATUS.WATCH]: 'warning',
+  [CREDIT_STATUS.OVERDUE]: 'serious',
+  [CREDIT_STATUS.LOCKED]: 'critical',
 };
 
 export function StatusPill({ status, tone, label, detail, size = 'md' }) {
-  const [resolvedTone, resolvedLabel] = STATUS_TONE[status] ?? [tone ?? 'neutral', label ?? status];
+  const { t } = useLocale();
+  const [resolvedTone, resolvedLabel] = STATUS_TONE[status]
+    ? [STATUS_TONE[status], t(`labels.creditStatus.${status}`)]
+    : [tone ?? 'neutral', label ?? status];
   const config = TONES[tone ?? resolvedTone] ?? TONES.neutral;
   const Icon = config.icon;
   const pad = size === 'sm' ? 'px-1.5 py-0.5 text-2xs' : 'px-2 py-1 text-xs';

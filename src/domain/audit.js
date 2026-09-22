@@ -1,6 +1,11 @@
 import { toDate } from '../lib/dates';
 import { fmtMMK } from '../lib/format';
-import { roleLabel } from './permissions';
+import { tOr, translate } from '../i18n/translate';
+
+// Descriptions read from the dictionary (admin.action / admin.entity /
+// admin.desc). Callers in a component pass their own `t`; everything else —
+// tests included — gets English.
+const english = (key, vars) => translate('en', key, vars);
 
 /**
  * ---------------------------------------------------------------------------
@@ -17,103 +22,110 @@ import { roleLabel } from './permissions';
  * `clientAt` — see `logAudit`).
  */
 
+// Display names: admin.action.<ACTION> in the dictionary.
 export const ACTION_META = {
-  VOUCHER_CREATE: { label: 'Voucher issued', tone: 'neutral' },
-  VOUCHER_EDIT: { label: 'Voucher edited', tone: 'warning' },
-  VOUCHER_VOID: { label: 'Voucher voided', tone: 'critical' },
-  PAYMENT_RECORD: { label: 'Payment recorded', tone: 'good' },
-  CREDIT_OVERRIDE: { label: 'Credit override granted', tone: 'critical' },
-  CREDIT_HOLD_SET: { label: 'Manual hold placed', tone: 'critical' },
-  CREDIT_HOLD_CLEARED: { label: 'Manual hold cleared', tone: 'good' },
-  CREDIT_NOTE: { label: 'Credit note issued', tone: 'warning' },
-  PO_CREATE: { label: 'Purchase order raised', tone: 'neutral' },
-  PO_RECEIVE: { label: 'Purchase order received', tone: 'good' },
-  EXPENSE_RECORD: { label: 'Expense recorded', tone: 'neutral' },
-  TRIP_OPEN: { label: 'Car trip opened', tone: 'neutral' },
-  CAR_LOAD: { label: 'Car loaded', tone: 'neutral' },
-  TRIP_CLOSE: { label: 'Car trip settled', tone: 'good' },
-  USER_ROLE_CHANGE: { label: 'Role changed', tone: 'warning' },
-  USER_STATUS_CHANGE: { label: 'Account status changed', tone: 'warning' },
-  MASTER_PASSWORD_ROTATE: { label: 'Master password rotated', tone: 'critical' },
-  SHOP_CREATE: { label: 'Shop added', tone: 'neutral' },
-  SHOP_UPDATE: { label: 'Shop details changed', tone: 'warning' },
+  VOUCHER_CREATE: { tone: 'neutral' },
+  VOUCHER_EDIT: { tone: 'warning' },
+  VOUCHER_VOID: { tone: 'critical' },
+  PAYMENT_RECORD: { tone: 'good' },
+  CREDIT_OVERRIDE: { tone: 'critical' },
+  CREDIT_HOLD_SET: { tone: 'critical' },
+  CREDIT_HOLD_CLEARED: { tone: 'good' },
+  CREDIT_NOTE: { tone: 'warning' },
+  PO_CREATE: { tone: 'neutral' },
+  PO_RECEIVE: { tone: 'good' },
+  EXPENSE_RECORD: { tone: 'neutral' },
+  TRIP_OPEN: { tone: 'neutral' },
+  CAR_LOAD: { tone: 'neutral' },
+  TRIP_CLOSE: { tone: 'good' },
+  USER_ROLE_CHANGE: { tone: 'warning' },
+  USER_STATUS_CHANGE: { tone: 'warning' },
+  MASTER_PASSWORD_ROTATE: { tone: 'critical' },
+  SHOP_CREATE: { tone: 'neutral' },
+  SHOP_UPDATE: { tone: 'warning' },
 };
 
-const ENTITY_LABELS = {
-  vouchers: 'voucher',
-  shops: 'shop',
-  payments: 'payment',
-  creditNotes: 'credit note',
-  purchaseOrders: 'purchase order',
-  expenses: 'expense',
-  carTrips: 'car trip',
-  users: 'user',
-  settings: 'settings',
-};
-
-export function actionMeta(action) {
-  return ACTION_META[action] ?? { label: action ?? 'Unknown action', tone: 'neutral' };
+export function actionMeta(action, t = english) {
+  return {
+    tone: ACTION_META[action]?.tone ?? 'neutral',
+    label: tOr(t, `admin.action.${action}`, action ?? t('admin.action.unknown')),
+  };
 }
 
-export function entityLabel(entity) {
-  return ENTITY_LABELS[entity] ?? entity ?? 'record';
+export function entityLabel(entity, t = english) {
+  return entity ? tOr(t, `admin.entity.${entity}`, entity) : t('admin.entity.record');
 }
 
 /**
  * One line describing what actually happened — the thing a reviewer reads
  * first and opens the raw entry only if it does not answer the question.
  */
-export function describeAuditEntry(entry) {
+export function describeAuditEntry(entry, t = english) {
   const after = entry?.after ?? {};
   const before = entry?.before ?? {};
+  const id = entry?.entityId;
+  const d = (key, vars) => t(`admin.desc.${key}`, vars);
+  const role = (key) => tOr(t, `labels.role.${key}`, key);
 
   switch (entry?.action) {
     case 'VOUCHER_CREATE':
       return after.grandTotal != null
-        ? `Issued ${after.voucherNo ?? entry.entityId} for K ${fmtMMK(after.grandTotal)}`
-        : `Issued voucher ${entry.entityId}`;
+        ? d('voucherIssuedAmount', { no: after.voucherNo ?? id, amount: fmtMMK(after.grandTotal) })
+        : d('voucherIssued', { id });
     case 'PAYMENT_RECORD':
-      return after.amount != null
-        ? `Recorded K ${fmtMMK(after.amount)}${after.shopId ? ` from ${after.shopId}` : ''}`
-        : 'Recorded a payment';
+      if (after.amount == null) return d('payment');
+      return after.shopId
+        ? d('paymentFrom', { amount: fmtMMK(after.amount), shop: after.shopId })
+        : d('paymentAmount', { amount: fmtMMK(after.amount) });
     case 'CREDIT_OVERRIDE':
-      return `Released ${entry.entityId} for 30 minutes`;
+      return d('override', { id, minutes: 30 });
     case 'CREDIT_HOLD_SET':
-      return `Placed a hold on ${entry.entityId}`;
+      return d('holdSet', { id });
     case 'CREDIT_HOLD_CLEARED':
-      return `Cleared the hold on ${entry.entityId}`;
+      return d('holdCleared', { id });
     case 'CREDIT_NOTE':
-      return after.amount != null ? `Issued a credit note for K ${fmtMMK(after.amount)}` : 'Issued a credit note';
+      return after.amount != null ? d('creditNoteAmount', { amount: fmtMMK(after.amount) }) : d('creditNote');
     case 'PO_CREATE':
-      return `Raised ${entry.entityId}`;
-    case 'PO_RECEIVE':
-      return after.movements != null
-        ? `Received ${entry.entityId} — ${after.movements} line${after.movements === 1 ? '' : 's'}, ${after.costUpdates?.length ?? 0} cost${(after.costUpdates?.length ?? 0) === 1 ? '' : 's'} restated`
-        : `Received ${entry.entityId}`;
+      return d('poRaised', { id });
+    case 'PO_RECEIVE': {
+      if (after.movements == null) return d('poReceived', { id });
+      const costs = after.costUpdates?.length ?? 0;
+      return d('poReceivedDetail', {
+        id,
+        lines: d(after.movements === 1 ? 'lineOne' : 'lineMany', { count: after.movements }),
+        costs: d(costs === 1 ? 'costOne' : 'costMany', { count: costs }),
+      });
+    }
     case 'EXPENSE_RECORD':
-      return after.amount != null ? `Recorded K ${fmtMMK(after.amount)} in expenses` : 'Recorded an expense';
+      return after.amount != null ? d('expenseAmount', { amount: fmtMMK(after.amount) }) : d('expense');
     case 'TRIP_OPEN':
-      return `Opened a car trip`;
+      return d('tripOpened');
     case 'CAR_LOAD':
-      return after.pieces != null ? `Loaded ${after.pieces} pcs into the car` : 'Loaded the car';
+      return after.pieces != null ? d('carLoadedPieces', { pieces: after.pieces }) : d('carLoaded');
     case 'TRIP_CLOSE':
       return after.shortPieces
-        ? `Settled the trip — ${after.shortPieces} pcs short (K ${fmtMMK(after.shortValue ?? 0)})`
-        : 'Settled the trip — everything tied out';
+        ? d('tripShort', { pieces: after.shortPieces, amount: fmtMMK(after.shortValue ?? 0) })
+        : d('tripTiedOut');
     case 'USER_ROLE_CHANGE':
-      return `Changed ${entry.entityId} from ${roleLabel(before.role)} to ${roleLabel(after.role)}`;
+      return d('roleChange', { id, from: role(before.role), to: role(after.role) });
     case 'USER_STATUS_CHANGE':
-      return `${after.active ? 'Reactivated' : 'Deactivated'} ${entry.entityId}`;
+      return d(after.active ? 'reactivated' : 'deactivated', { id });
     case 'MASTER_PASSWORD_ROTATE':
-      return 'Rotated the credit-override master password';
+      return d('passwordRotated');
     case 'SHOP_CREATE':
-      return after.code ? `Added ${after.name ?? entry.entityId} (${after.code})` : `Added shop ${entry.entityId}`;
+      return after.code ? d('shopAddedCode', { name: after.name ?? id, code: after.code }) : d('shopAdded', { id });
     case 'SHOP_UPDATE': {
-      const fields = Object.keys(after ?? {});
-      return fields.length ? `Updated ${entry.entityId} — ${fields.join(', ')}` : `Updated ${entry.entityId}`;
+      const fields = Object.keys(after ?? {}).map((field) => tOr(t, `admin.field.${field}`, field));
+      return fields.length
+        ? d('shopUpdatedFields', { id, fields: fields.join(', ') })
+        : d('shopUpdated', { id });
     }
     default:
-      return `${actionMeta(entry?.action).label} on ${entityLabel(entry?.entity)} ${entry?.entityId ?? ''}`.trim();
+      return d('generic', {
+        action: actionMeta(entry?.action, t).label,
+        entity: entityLabel(entry?.entity, t),
+        id: id ?? '',
+      }).trim();
   }
 }
 
@@ -160,7 +172,7 @@ export function sortAuditLogs(entries = []) {
   });
 }
 
-export function summariseAuditActivity(entries = []) {
+export function summariseAuditActivity(entries = [], t = english) {
   const byActor = new Map();
   const byAction = new Map();
 
@@ -177,7 +189,7 @@ export function summariseAuditActivity(entries = []) {
       .map(([name, count]) => ({ key: name, value: count }))
       .sort((a, b) => b.value - a.value),
     byAction: [...byAction.entries()]
-      .map(([action, count]) => ({ key: action, label: actionMeta(action).label, value: count }))
+      .map(([action, count]) => ({ key: action, label: actionMeta(action, t).label, value: count }))
       .sort((a, b) => b.value - a.value),
   };
 }

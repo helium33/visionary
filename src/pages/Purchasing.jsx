@@ -12,6 +12,7 @@ import { fmtDate } from '../lib/dates';
 import { fmtMMK, fmtPct } from '../lib/format';
 import { useCatalogue } from '../hooks/useCatalogue';
 import { useToday } from '../hooks/useToday';
+import { useLocale } from '../context/LocaleContext';
 import { ExpensesPanel } from '../components/purchasing/ExpensesPanel';
 import { PoDetailModal } from '../components/purchasing/PoDetailModal';
 import { PoTable } from '../components/purchasing/PoTable';
@@ -33,18 +34,19 @@ import { PageHeader } from '../components/layout/AppShell';
  * field — so the profit side of the business is only as honest as this screen.
  */
 const TABS = [
-  { key: 'ORDERS', label: 'Purchase orders' },
-  { key: 'EXPENSES', label: 'General expenses' },
+  { key: 'ORDERS', label: 'purchasing.tabOrders' },
+  { key: 'EXPENSES', label: 'purchasing.tabExpenses' },
 ];
 
 const PERIODS = [
-  { key: 30, label: '30 days' },
-  { key: 90, label: '90 days' },
-  { key: 365, label: '12 months' },
+  { key: 30, label: 'common.last30' },
+  { key: 90, label: 'common.last90' },
+  { key: 365, label: 'common.last365' },
 ];
 
 export default function Purchasing() {
   const today = useToday();
+  const { t } = useLocale();
   const { byId, loading: catalogueLoading } = useCatalogue();
   const [orders, setOrders] = useState([]);
   const [expenses, setExpenses] = useState([]);
@@ -130,8 +132,8 @@ export default function Purchasing() {
   return (
     <>
       <PageHeader
-        title="Purchasing & landed cost"
-        subtitle="Factory price + cargo + transport + labeling = actual cost"
+        title={t('purchasing.title')}
+        subtitle={t('purchasing.subtitle')}
         actions={
           <div className="flex gap-1 rounded-md border border-line-hair p-0.5 text-xs">
             {PERIODS.map((period) => (
@@ -144,7 +146,7 @@ export default function Purchasing() {
                   days === period.key ? 'bg-ink text-plane' : 'text-ink-secondary hover:bg-raised'
                 }`}
               >
-                {period.label}
+                {t(period.label)}
               </button>
             ))}
           </div>
@@ -154,43 +156,50 @@ export default function Purchasing() {
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
-            label="Committed, not landed"
+            label={t('purchasing.statCommitted')}
             value={totals.committedValue}
             icon={Ship}
             tone={totals.lateCount > 0 ? 'critical' : 'neutral'}
             footnote={
-              totals.committedCount
-                ? `${totals.committedCount} orders${totals.lateCount ? ` · ${totals.lateCount} late` : ''}`
-                : 'nothing on the water'
+              !totals.committedCount
+                ? t('purchasing.statNothingOnWater')
+                : totals.lateCount
+                  ? t('purchasing.statOrdersLate', { count: totals.committedCount, late: totals.lateCount })
+                  : t('purchasing.statOrders', { count: totals.committedCount })
             }
           />
           <StatTile
-            label="Landed this period"
+            label={t('purchasing.statLanded')}
             value={totals.landedValue}
             icon={Coins}
-            footnote={`${totals.pieces} pcs · K ${fmtMMK(totals.avgUnitCost)} / pc`}
+            footnote={t('purchasing.statLandedNote', {
+              pieces: totals.pieces,
+              avg: fmtMMK(totals.avgUnitCost),
+            })}
           />
           <StatTile
-            label="Freight uplift"
+            label={t('purchasing.statUplift')}
             value={fmtPct(totals.upliftPct, 1)}
             unit=""
             raw
             icon={Truck}
-            footnote={`on K ${fmtMMK(totals.factoryValue, { compact: true })} of goods`}
+            footnote={t('purchasing.statUpliftNote', {
+              amount: fmtMMK(totals.factoryValue, { compact: true }),
+            })}
           />
           <StatTile
-            label="General expenses"
+            label={t('purchasing.statExpenses')}
             value={expenseSummary.total}
             icon={Receipt}
-            footnote={`${expenseSummary.count} entries in ${days} days`}
+            footnote={t('purchasing.statExpensesNote', { count: expenseSummary.count, days })}
           />
         </div>
 
         {commitments.length ? (
           <Card>
             <CardHeader
-              title="On the water"
-              subtitle="Paid for, not yet on the shelf"
+              title={t('purchasing.onWaterTitle')}
+              subtitle={t('purchasing.onWaterSub')}
               icon={Ship}
             />
             <CardBody className="space-y-2 pt-0">
@@ -211,18 +220,18 @@ export default function Purchasing() {
                           {po.poNo}
                         </p>
                         <p className="truncate text-2xs text-ink-secondary">
-                          {po.supplierName} · {costed.totalQty} pcs
+                          {po.supplierName} · {t('common.pcs', { n: costed.totalQty })}
                         </p>
                       </button>
                       <StatusPill
                         tone={arrival.tone}
-                        label={arrival.label}
+                        label={t(`purchasing.status.${arrival.key}`)}
                         size="sm"
                         detail={
                           arrival.overdue
-                            ? `${arrival.daysLate}d late`
+                            ? t('purchasing.daysLate', { n: arrival.daysLate })
                             : arrival.daysUntil != null
-                              ? `in ${arrival.daysUntil}d`
+                              ? t('purchasing.inDays', { n: arrival.daysUntil })
                               : null
                         }
                       />
@@ -242,12 +251,8 @@ export default function Purchasing() {
 
         <Card>
           <CardHeader
-            title={tab === 'ORDERS' ? 'Purchase orders' : 'General expenses'}
-            subtitle={
-              tab === 'ORDERS'
-                ? 'Open one to see its landed-cost breakdown and receive it'
-                : 'Salaries, rent, utilities and fees — the other half of net profit'
-            }
+            title={t(tab === 'ORDERS' ? 'purchasing.tabOrders' : 'purchasing.tabExpenses')}
+            subtitle={t(tab === 'ORDERS' ? 'purchasing.ordersSub' : 'purchasing.expensesSub')}
             icon={tab === 'ORDERS' ? Ship : Receipt}
           />
 
@@ -263,7 +268,7 @@ export default function Purchasing() {
                     : 'text-ink-secondary hover:bg-raised hover:text-ink'
                 }`}
               >
-                {option.label}
+                {t(option.label)}
                 <span className="ml-1.5 tabular-nums opacity-70">
                   {option.key === 'ORDERS' ? orders.length : expenseSummary.count}
                 </span>
@@ -282,9 +287,7 @@ export default function Purchasing() {
 
         <p className="flex items-start gap-2 px-1 text-2xs text-ink-secondary">
           <TrendingUp size={13} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
-          Receiving a purchase order restates each product&rsquo;s landed cost. Every margin, stock
-          valuation and dead-stock figure in the system reads that field — so the numbers on the
-          dashboard are only as honest as the charges entered here.
+          {t('purchasing.footnote')}
         </p>
       </div>
 

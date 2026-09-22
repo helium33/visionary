@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import qrcode from 'qrcode-generator';
 import { encodeEan13 } from '../../domain/barcode';
+import { useLocale } from '../../context/LocaleContext';
 
 /**
  * EAN-13 drawn as SVG.
@@ -14,12 +15,13 @@ import { encodeEan13 } from '../../domain/barcode';
  * theme tokens the rest of the app uses and the label always prints on white.
  */
 export function BarcodeSvg({ value, height = 44, moduleWidth = 1.6, showDigits = true, fit }) {
+  const { t } = useLocale();
   const symbol = useMemo(() => encodeEan13(value), [value]);
 
   if (!symbol) {
     return (
       <div className="text-2xs text-status-critical" role="alert">
-        Invalid barcode
+        {t('inventory.invalidBarcode')}
       </div>
     );
   }
@@ -39,7 +41,7 @@ export function BarcodeSvg({ value, height = 44, moduleWidth = 1.6, showDigits =
     <svg
       viewBox={`0 0 ${width} ${barHeight + textHeight}`}
       role="img"
-      aria-label={`Barcode ${symbol.code}`}
+      aria-label={t('inventory.barcodeAria', { code: symbol.code })}
       // `fit` sizes the symbol in the label's own units (mm). The default
       // meet behaviour scales it uniformly inside that box, so the bars keep
       // their ratio and the symbol stays scannable.
@@ -90,6 +92,7 @@ export function BarcodeSvg({ value, height = 44, moduleWidth = 1.6, showDigits =
  * scanning at 12mm square.
  */
 export function QrSvg({ value, size = 64, margin = 2 }) {
+  const { t } = useLocale();
   // `size` may be a number (px) or any CSS length, so a label can ask for mm.
   const modules = useMemo(() => {
     if (!value) return null;
@@ -116,7 +119,7 @@ export function QrSvg({ value, size = 64, margin = 2 }) {
       width={size}
       height={size}
       role="img"
-      aria-label={`QR code ${value}`}
+      aria-label={t('inventory.qrAria', { code: value })}
       shapeRendering="crispEdges"
       style={{ display: 'block', flexShrink: 0 }}
     >

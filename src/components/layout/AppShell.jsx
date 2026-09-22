@@ -14,7 +14,6 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { ROLE_LABELS } from '../../lib/constants';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
 import { BrandLogo } from '../brand/BrandLogo';
@@ -63,7 +62,7 @@ export function AppShell({ sync, children }) {
             type="button"
             className="ml-auto rounded p-1 text-ink-muted hover:bg-raised lg:hidden"
             onClick={() => setOpen(false)}
-            aria-label="Close menu"
+            aria-label={t('header.closeMenu')}
           >
             <X size={16} />
           </button>
@@ -102,7 +101,7 @@ export function AppShell({ sync, children }) {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
               <p className="truncate text-xs font-medium text-ink">{user?.name}</p>
-              <p className="text-2xs text-ink-secondary">{ROLE_LABELS[user?.role] ?? user?.role}</p>
+              <p className="text-2xs text-ink-secondary">{user?.role ? t(`labels.role.${user.role}`) : null}</p>
             </div>
             <button
               type="button"
@@ -117,14 +116,14 @@ export function AppShell({ sync, children }) {
           </div>
           {isDemoMode ? (
             <select
-              aria-label="Switch demo role"
+              aria-label={t('header.switchDemoRole')}
               className="mt-2 w-full rounded border border-line-hair bg-surface px-2 py-1 text-2xs text-ink-secondary"
               value={user?.id}
               onChange={(e) => switchDemoUser(e.target.value)}
             >
               {demoUsers.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {ROLE_LABELS[u.role]} — {u.name}
+                  {t(`labels.role.${u.role}`)} — {u.name}
                 </option>
               ))}
             </select>
@@ -147,7 +146,7 @@ export function AppShell({ sync, children }) {
             type="button"
             className="rounded p-1.5 text-ink-secondary hover:bg-raised lg:hidden"
             onClick={() => setOpen(true)}
-            aria-label="Open menu"
+            aria-label={t('header.openMenu')}
           >
             <Menu size={18} />
           </button>

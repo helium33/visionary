@@ -24,13 +24,7 @@ export function SyncBadge({ sync }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded px-2 py-1 text-2xs font-medium ${tone}`}
-      title={
-        !online
-          ? 'Vouchers and payments are written to the local cache and sync automatically when a connection returns.'
-          : pending
-            ? 'Some writes are still queued.'
-            : 'All local changes are on the server.'
-      }
+      title={t(!online ? 'header.offlineHint' : pending ? 'header.syncingHint' : 'header.syncedHint')}
     >
       <Icon size={12} className={pending && online ? 'animate-spin' : ''} aria-hidden="true" />
       {label}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Check, Search } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 import { fmtMMK } from '../../lib/format';
 
 const MATERIALS = ['TR90', 'ACETATE', 'METAL', 'TITANIUM'];
@@ -11,6 +12,7 @@ const SHAPES = ['RECTANGLE', 'ROUND', 'SQUARE', 'CAT_EYE', 'AVIATOR'];
  * the shop asks for "a round acetate for women".
  */
 export function ModelPicker({ products, selectedId, onSelect }) {
+  const { t } = useLocale();
   const [search, setSearch] = useState('');
   const [material, setMaterial] = useState('ALL');
   const [shape, setShape] = useState('ALL');
@@ -32,7 +34,7 @@ export function ModelPicker({ products, selectedId, onSelect }) {
     <div>
       <div className="flex flex-wrap gap-2">
         <label className="relative min-w-[10rem] flex-1">
-          <span className="sr-only">Search model number</span>
+          <span className="sr-only">{t('vouchers.searchModel')}</span>
           <Search
             size={14}
             className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted"
@@ -41,33 +43,33 @@ export function ModelPicker({ products, selectedId, onSelect }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Model no. — e.g. PB-2026"
+            placeholder={t('vouchers.modelPlaceholder')}
             className="h-9 w-full rounded-md border border-line-hair bg-surface pl-8 pr-2 text-sm text-ink outline-none"
           />
         </label>
         <select
-          aria-label="Filter by material"
+          aria-label={t('vouchers.filterMaterial')}
           value={material}
           onChange={(e) => setMaterial(e.target.value)}
           className="h-9 rounded-md border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
         >
-          <option value="ALL">All materials</option>
+          <option value="ALL">{t('vouchers.allMaterials')}</option>
           {MATERIALS.map((m) => (
             <option key={m} value={m}>
-              {m}
+              {t(`labels.material.${m}`)}
             </option>
           ))}
         </select>
         <select
-          aria-label="Filter by shape"
+          aria-label={t('vouchers.filterShape')}
           value={shape}
           onChange={(e) => setShape(e.target.value)}
           className="h-9 rounded-md border border-line-hair bg-surface px-2 text-xs text-ink-secondary"
         >
-          <option value="ALL">All shapes</option>
+          <option value="ALL">{t('vouchers.allShapes')}</option>
           {SHAPES.map((s) => (
             <option key={s} value={s}>
-              {s.replace('_', ' ')}
+              {t(`labels.shape.${s}`)}
             </option>
           ))}
         </select>
@@ -92,17 +94,17 @@ export function ModelPicker({ products, selectedId, onSelect }) {
                 {active ? <Check size={12} aria-hidden="true" /> : null}
                 <span className="font-medium tabular-nums">{product.modelNo}</span>
                 <span className={active ? 'opacity-70' : 'text-ink-muted'}>
-                  {product.colorCount}c · K {fmtMMK(product.pricing?.STANDARD, { compact: true })}
+                  {t('vouchers.colourCount', { count: product.colorCount })} · K {fmtMMK(product.pricing?.STANDARD, { compact: true })}
                 </span>
                 {low && !active ? (
-                  <span className="rounded bg-wash-warning px-1 py-0.5 text-2xs text-ink">low</span>
+                  <span className="rounded bg-wash-warning px-1 py-0.5 text-2xs text-ink">{t('vouchers.low')}</span>
                 ) : null}
               </button>
             </li>
           );
         })}
         {rows.length === 0 ? (
-          <li className="px-1 py-4 text-xs text-ink-secondary">No models match that filter.</li>
+          <li className="px-1 py-4 text-xs text-ink-secondary">{t('vouchers.noModels')}</li>
         ) : null}
       </ul>
     </div>

@@ -1,4 +1,6 @@
+import { useLocale } from '../../context/LocaleContext';
 import { fmtMMK } from '../../lib/format';
+import { townshipLabel } from '../../constants/districts';
 import { ChartTooltip, useChartTooltip } from './ChartTooltip';
 
 /**
@@ -7,13 +9,15 @@ import { ChartTooltip, useChartTooltip } from './ChartTooltip';
  * title); the value rides the row as a direct label, which also satisfies the
  * relief rule for the lighter steps.
  */
-export function BarList({ rows, valueLabel = 'Sales', emptyLabel = 'No sales in this period' }) {
+export function BarList({ rows, valueLabel, emptyLabel }) {
+  const { t, locale } = useLocale();
   const { tip, show, move, hide } = useChartTooltip();
+  const seriesLabel = valueLabel ?? t('charts.sales');
   const max = Math.max(...rows.map((r) => r.value), 1);
   const total = rows.reduce((sum, r) => sum + r.value, 0) || 1;
 
   if (!rows.length) {
-    return <p className="px-1 py-8 text-center text-xs text-ink-secondary">{emptyLabel}</p>;
+    return <p className="px-1 py-8 text-center text-xs text-ink-secondary">{emptyLabel ?? t('charts.noSales')}</p>;
   }
 
   return (
@@ -30,13 +34,17 @@ export function BarList({ rows, valueLabel = 'Sales', emptyLabel = 'No sales in 
                 show(
                   e,
                   <div className="space-y-0.5">
-                    <p className="font-medium text-ink">{row.key}</p>
-                    {row.township ? <p className="text-ink-secondary">{row.township}</p> : null}
+                    <p className="font-medium text-ink">{row.label ?? row.key}</p>
+                    {row.township ? <p className="text-ink-secondary">{townshipLabel(row.township, locale)}</p> : null}
                     <p className="text-ink-secondary">
-                      K {fmtMMK(row.value)} · {row.count} voucher{row.count === 1 ? '' : 's'}
+                      K {fmtMMK(row.value)} ·{' '}
+                      {t(row.count === 1 ? 'charts.voucherOne' : 'charts.voucherMany', { count: row.count })}
                     </p>
                     <p className="text-ink-muted">
-                      {((row.value / total) * 100).toFixed(1)}% of {valueLabel.toLowerCase()}
+                      {t('charts.shareOf', {
+                        pct: ((row.value / total) * 100).toFixed(1),
+                        label: seriesLabel.toLowerCase(),
+                      })}
                     </p>
                   </div>,
                 )
@@ -44,9 +52,9 @@ export function BarList({ rows, valueLabel = 'Sales', emptyLabel = 'No sales in 
               onMouseMove={move}
               onMouseLeave={hide}
             >
-              <span className="col-span-2 truncate text-xs text-ink sm:col-span-1" title={row.key}>
+              <span className="col-span-2 truncate text-xs text-ink sm:col-span-1" title={row.label ?? row.key}>
                 <span className="mr-1.5 text-ink-muted tnum">{index + 1}.</span>
-                {row.key}
+                {row.label ?? row.key}
               </span>
 
               {/* Bar: capped at 14px, square at the baseline, 4px rounded data-end. */}

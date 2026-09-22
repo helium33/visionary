@@ -24,6 +24,7 @@ import { fmtDate } from '../lib/dates';
 import { fmtMMK, fmtPct } from '../lib/format';
 import { useCatalogue } from '../hooks/useCatalogue';
 import { useLocale } from '../context/LocaleContext';
+import { tOr } from '../i18n/translate';
 import { useToday } from '../hooks/useToday';
 import { BarList } from '../components/charts/BarList';
 import { Waterfall } from '../components/charts/Waterfall';
@@ -32,6 +33,7 @@ import { ShopsTownshipsReport } from '../components/reports/ShopsTownshipsReport
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
 import { SkeletonRows } from '../components/ui/EmptyState';
 import { StatTile } from '../components/ui/StatTile';
+import { Rich } from '../components/ui/Rich';
 import { PageHeader } from '../components/layout/AppShell';
 
 /**
@@ -50,9 +52,9 @@ import { PageHeader } from '../components/layout/AppShell';
  * always arrives with the context needed to judge it.
  */
 const PERIODS = [
-  { key: 30, label: '30 days' },
-  { key: 90, label: '90 days' },
-  { key: 365, label: '12 months' },
+  { key: 30, label: 'common.last30' },
+  { key: 90, label: 'common.last90' },
+  { key: 365, label: 'common.last365' },
 ];
 
 export default function Reports() {
@@ -125,7 +127,15 @@ export default function Reports() {
     [vouchers, payments, expenses, byId, previousFrom, from],
   );
 
-  const bridge = useMemo(() => profitBridge(pnl), [pnl]);
+  // Expense steps are keyed by category (SALARY, RENT…), the rest by line.
+  const bridge = useMemo(
+    () =>
+      profitBridge(pnl).map((step) => ({
+        ...step,
+        label: tOr(t, `reports.bridge.${step.key}`, tOr(t, `purchasing.expenseCategory.${step.key}`, step.label)),
+      })),
+    [pnl, t],
+  );
 
   const models = useMemo(
     () => profitByModel({ vouchers, productsById: byId, from, to: today }),
@@ -151,7 +161,7 @@ export default function Reports() {
     <>
       <PageHeader
         title={t('reports.title')}
-        subtitle={`${fmtDate(from)} — ${fmtDate(today)} · compared with the ${days} days before`}
+        subtitle={t('reports.subtitle', { from: fmtDate(from), to: fmtDate(today), days })}
         actions={
           <div className="flex gap-1 rounded-md border border-line-hair p-0.5 text-xs">
             {PERIODS.map((period) => (
@@ -164,7 +174,7 @@ export default function Reports() {
                   days === period.key ? 'bg-ink text-plane' : 'text-ink-secondary hover:bg-raised'
                 }`}
               >
-                {period.label}
+                {t(period.label)}
               </button>
             ))}
           </div>
@@ -199,7 +209,7 @@ export default function Reports() {
           <Card className="flex flex-col justify-between p-5">
             <div>
               <p className="text-xs font-medium text-ink-secondary">
-                Net profit · last {days} days
+                {t('reports.netProfitDays', { days })}
               </p>
               <p
                 className={`mt-2 text-[42px] font-semibold leading-none tracking-tight ${
@@ -212,7 +222,7 @@ export default function Reports() {
 
               <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
                 <span className="rounded bg-raised px-1.5 py-0.5 tabular-nums">
-                  {fmtPct(pnl.netMarginPct, 1)} margin
+                  {t('reports.marginPct', { pct: fmtPct(pnl.netMarginPct, 1) })}
                 </span>
                 {netDelta != null ? (
                   <span
@@ -225,50 +235,63 @@ export default function Reports() {
                     ) : (
                       <TrendingDown size={12} aria-hidden="true" />
                     )}
-                    {netDelta >= 0 ? '+' : ''}
-                    {fmtPct(netDelta, 0)} vs previous {days} days
+                    {t('reports.vsPrevious', {
+                      delta: `${netDelta >= 0 ? '+' : ''}${fmtPct(netDelta, 0)}`,
+                      days,
+                    })}
                   </span>
                 ) : (
-                  <span className="text-ink-muted">no comparable prior period</span>
+                  <span className="text-ink-muted">{t('reports.noPrior')}</span>
                 )}
               </p>
             </div>
 
             <p className="mt-5 text-2xs text-ink-secondary">
-              Revenue K {fmtMMK(pnl.revenue)} − cost of goods K {fmtMMK(pnl.cogs)} − expenses K{' '}
-              {fmtMMK(pnl.expenses.total)}
+              {t('reports.formula', {
+                revenue: fmtMMK(pnl.revenue),
+                cogs: fmtMMK(pnl.cogs),
+                expenses: fmtMMK(pnl.expenses.total),
+              })}
             </p>
           </Card>
 
           <div className="grid grid-cols-2 gap-3">
             <StatTile
-              label="Revenue"
+              label={t('reports.revenue')}
               value={pnl.revenue}
               icon={Banknote}
-              footnote={`${pnl.voucherCount} vouchers · ${pnl.pieces} pcs`}
+              footnote={t('reports.vouchersPieces', {
+                vouchers: t(pnl.voucherCount === 1 ? 'charts.voucherOne' : 'charts.voucherMany', {
+                  count: pnl.voucherCount,
+                }),
+                pieces: pnl.pieces,
+              })}
             />
             <StatTile
-              label="Gross profit"
+              label={t('reports.grossProfit')}
               value={pnl.grossProfit}
               icon={TrendingUp}
               tone="good"
-              footnote={`${fmtPct(pnl.grossMarginPct, 1)} gross margin`}
+              footnote={t('reports.grossMargin', { pct: fmtPct(pnl.grossMarginPct, 1) })}
             />
             <StatTile
-              label="Cost of goods"
+              label={t('reports.cogs')}
               value={pnl.cogs}
               icon={Package}
               footnote={
                 pnl.costEstimated
-                  ? `${pnl.estimatedLines} of ${pnl.costedLines} lines estimated`
-                  : 'landed cost, frozen at sale'
+                  ? t('reports.linesEstimated', {
+                      estimated: pnl.estimatedLines,
+                      costed: pnl.costedLines,
+                    })
+                  : t('reports.frozenAtSale')
               }
             />
             <StatTile
-              label="General expenses"
+              label={t('reports.expenses')}
               value={pnl.expenses.total}
               icon={Receipt}
-              footnote={`${pnl.expenses.count} entries`}
+              footnote={t('reports.entries', { count: pnl.expenses.count })}
             />
           </div>
         </div>
@@ -277,20 +300,20 @@ export default function Reports() {
           <p className="flex items-start gap-2 rounded-card border border-line-hair bg-wash-warning px-3 py-2.5 text-xs text-ink-secondary">
             <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
             <span>
-              <span className="font-medium text-ink">
-                {pnl.estimatedLines} of {pnl.costedLines} sold lines have no cost recorded
-              </span>{' '}
-              and fall back to each product&rsquo;s current landed cost. Gross profit for those
-              lines moves whenever a new shipment is received — treat it as an estimate until the
-              vouchers are re-costed.
+              <Rich
+                text={t('reports.estimatedWarning', {
+                  estimated: pnl.estimatedLines,
+                  costed: pnl.costedLines,
+                })}
+              />
             </span>
           </p>
         ) : null}
 
         <Card>
           <CardHeader
-            title="Where the revenue went"
-            subtitle="Revenue, less cost of goods, less each category of expense"
+            title={t('reports.bridgeTitle')}
+            subtitle={t('reports.bridgeSub')}
             icon={Coins}
           />
           <CardBody>{busy ? <SkeletonRows rows={5} /> : <Waterfall steps={bridge} />}</CardBody>
@@ -299,8 +322,8 @@ export default function Reports() {
         <div className="grid gap-3 lg:grid-cols-2">
           <Card>
             <CardHeader
-              title="Most profitable models"
-              subtitle="Gross profit, not revenue — a model can sell well at a thin margin"
+              title={t('reports.topModels')}
+              subtitle={t('reports.topModelsSub')}
               icon={TrendingUp}
             />
             <CardBody>
@@ -309,8 +332,8 @@ export default function Reports() {
               ) : (
                 <BarList
                   rows={models.slice(0, 8)}
-                  valueLabel="Gross profit"
-                  emptyLabel="No sales in this period"
+                  valueLabel={t('reports.grossProfit')}
+                  emptyLabel={t('reports.noSales')}
                 />
               )}
             </CardBody>
@@ -318,17 +341,15 @@ export default function Reports() {
 
           <Card>
             <CardHeader
-              title="Thinnest margins"
-              subtitle="Worth a price review or a supplier conversation"
+              title={t('reports.thinMargins')}
+              subtitle={t('reports.thinMarginsSub')}
               icon={TrendingDown}
             />
             <CardBody>
               {busy ? (
                 <SkeletonRows rows={5} />
               ) : models.length === 0 ? (
-                <p className="py-8 text-center text-xs text-ink-secondary">
-                  No sales in this period
-                </p>
+                <p className="py-8 text-center text-xs text-ink-secondary">{t('reports.noSales')}</p>
               ) : (
                 <ul className="space-y-2">
                   {[...models]
@@ -344,7 +365,10 @@ export default function Reports() {
                             {model.key}
                           </p>
                           <p className="text-2xs text-ink-secondary">
-                            {model.qty} pcs · K {fmtMMK(model.revenue, { compact: true })} revenue
+                            {t('reports.modelLine', {
+                              qty: model.qty,
+                              revenue: fmtMMK(model.revenue, { compact: true }),
+                            })}
                           </p>
                         </div>
                         <div className="text-right">
@@ -369,8 +393,8 @@ export default function Reports() {
 
         <Card>
           <CardHeader
-            title="Sales rep commission"
-            subtitle="Volume, plus a bonus for collecting inside the 14-day term"
+            title={t('reports.commissionTitle')}
+            subtitle={t('reports.commissionSub')}
             icon={Users}
           />
           {busy ? <SkeletonRows rows={4} /> : <CommissionTable result={commissions} />}

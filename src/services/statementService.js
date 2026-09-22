@@ -1,6 +1,15 @@
 import { COMPANY } from '../lib/constants';
+import { townshipLabel } from '../constants/districts';
 import { fmtDate } from '../lib/dates';
-import { fmtMMK } from '../lib/format';
+import { fmtDays, fmtMMK } from '../lib/format';
+import { getActiveLocale, tNow } from '../i18n/translate';
+
+// Messages are written in the sender's UI language. An English message keeps
+// its one-line Burmese summary, because the shop reading it usually prefers
+// Burmese; a Burmese message already says everything in Burmese.
+const withBurmeseLine = () => getActiveLocale() === 'en';
+
+const shopLabel = (shop) => `${shop.name}${shop.nameMM ? ` (${shop.nameMM})` : ''}`;
 
 /**
  * Statements go out over Viber and Telegram, not email — that is how Yangon
@@ -11,17 +20,17 @@ import { fmtMMK } from '../lib/format';
 export function buildStatementText(shop, state, { today = new Date() } = {}) {
   const lines = [];
   lines.push(`${COMPANY.name}`);
-  lines.push(`Statement of Account — ${fmtDate(today)}`);
+  lines.push(tNow('credit.msg.statementHeader', { date: fmtDate(today) }));
   lines.push('');
-  lines.push(`Shop: ${shop.name}${shop.nameMM ? ` (${shop.nameMM})` : ''}`);
-  lines.push(`Township: ${shop.township}`);
+  lines.push(tNow('credit.msg.shop', { shop: shopLabel(shop) }));
+  lines.push(tNow('credit.msg.township', { township: townshipLabel(shop.township, getActiveLocale()) }));
   lines.push('');
-  lines.push('OUTSTANDING VOUCHERS');
+  lines.push(tNow('credit.msg.outstandingVouchers'));
 
   for (const { voucher, aging } of state.agedVouchers) {
     const when = aging.isOverdue
-      ? `OVERDUE ${aging.daysOverdue}d`
-      : `due in ${aging.daysUntilDue}d`;
+      ? tNow('credit.overdueTag', { n: aging.daysOverdue })
+      : tNow('credit.dueInTag', { n: aging.daysUntilDue });
     lines.push(
       `• ${voucher.voucherNo}  ${fmtDate(voucher.issueDate, 'dd/MM')} → ${fmtDate(aging.dueDate, 'dd/MM')}  ` +
         `K ${fmtMMK(aging.balanceDue)}  [${when}]`,
@@ -29,22 +38,23 @@ export function buildStatementText(shop, state, { today = new Date() } = {}) {
   }
 
   lines.push('');
-  lines.push(`TOTAL OUTSTANDING: K ${fmtMMK(state.outstanding)}`);
+  lines.push(tNow('credit.msg.totalOutstanding', { amount: fmtMMK(state.outstanding) }));
   if (state.overdueAmount > 0) {
-    lines.push(`OF WHICH OVERDUE: K ${fmtMMK(state.overdueAmount)}`);
+    lines.push(tNow('credit.msg.ofWhichOverdue', { amount: fmtMMK(state.overdueAmount) }));
     lines.push('');
-    lines.push('⚠️ Account is past the 14-day credit term. New orders are on hold');
-    lines.push('until the overdue amount is settled.');
-    lines.push('ငွေပေးချေရန် ရက်လွန်နေပါသည်။ အမှာစာအသစ် ခေတ္တရပ်ဆိုင်းထားပါသည်။');
+    lines.push(tNow('credit.msg.overdueWarning'));
+    if (withBurmeseLine()) {
+      lines.push('ငွေပေးချေရန် ရက်လွန်နေပါသည်။ အမှာစာအသစ် ခေတ္တရပ်ဆိုင်းထားပါသည်။');
+    }
   } else if (state.status === 'WATCH') {
     const days = state.oldestAging?.daysUntilDue ?? 0;
     lines.push('');
-    lines.push(`⏰ Payment due in ${days} day(s). Please arrange settlement.`);
-    lines.push('ငွေပေးချေရန် ရက်နီးကပ်နေပါပြီ။');
+    lines.push(tNow('credit.msg.dueSoon', { days: fmtDays(days) }));
+    if (withBurmeseLine()) lines.push('ငွေပေးချေရန် ရက်နီးကပ်နေပါပြီ။');
   }
 
   lines.push('');
-  lines.push(`Payment: ${COMPANY.phone} (KBZPay / WavePay)`);
+  lines.push(tNow('credit.msg.payment', { phone: COMPANY.phone }));
   lines.push(`${COMPANY.name} — ${COMPANY.phone}`);
   return lines.join('\n');
 }
@@ -52,17 +62,21 @@ export function buildStatementText(shop, state, { today = new Date() } = {}) {
 export function buildReminderText(shop, state) {
   const overdue = state.overdueAmount > 0;
   const headline = overdue
-    ? `Your account has K ${fmtMMK(state.overdueAmount)} past the 14-day term.`
-    : `K ${fmtMMK(state.outstanding)} falls due in ${state.oldestAging?.daysUntilDue ?? 0} day(s).`;
+    ? tNow('credit.msg.remindOverdue', { amount: fmtMMK(state.overdueAmount) })
+    : tNow('credit.msg.remindDue', {
+        amount: fmtMMK(state.outstanding),
+        days: fmtDays(state.oldestAging?.daysUntilDue ?? 0),
+      });
   return [
     `${shop.name} — ${COMPANY.name}`,
     '',
     headline,
-    `Oldest voucher: ${state.oldestVoucher?.voucherNo ?? '—'} (due ${fmtDate(state.oldestAging?.dueDate)})`,
+    tNow('credit.msg.remindOldest', {
+      no: state.oldestVoucher?.voucherNo ?? '—',
+      date: fmtDate(state.oldestAging?.dueDate),
+    }),
     '',
-    overdue
-      ? 'New orders are on hold until this is cleared. Thank you.'
-      : 'Thank you for your continued business.',
+    tNow(overdue ? 'credit.msg.remindOnHold' : 'credit.msg.remindThanks'),
     `${COMPANY.phone}`,
   ].join('\n');
 }
@@ -74,9 +88,9 @@ export function buildReminderText(shop, state) {
 export function buildVoucherText(voucher, shop) {
   const lines = [];
   lines.push(`${COMPANY.name}`);
-  lines.push(`Voucher ${voucher.voucherNo} — ${fmtDate(voucher.issueDate)}`);
+  lines.push(tNow('credit.msg.voucherHeader', { no: voucher.voucherNo, date: fmtDate(voucher.issueDate) }));
   lines.push('');
-  lines.push(`Shop: ${shop.name}${shop.nameMM ? ` (${shop.nameMM})` : ''}`);
+  lines.push(tNow('credit.msg.shop', { shop: shopLabel(shop) }));
   lines.push('');
 
   for (const item of voucher.items) {
@@ -87,20 +101,26 @@ export function buildVoucherText(voucher, shop) {
   }
 
   lines.push('');
-  lines.push(`Subtotal: K ${fmtMMK(voucher.subtotal)}`);
-  if (voucher.discount > 0) lines.push(`Discount: −K ${fmtMMK(voucher.discount)}`);
-  lines.push(`THIS VOUCHER: K ${fmtMMK(voucher.grandTotal)}`);
+  lines.push(tNow('credit.msg.subtotal', { amount: fmtMMK(voucher.subtotal) }));
+  if (voucher.discount > 0) lines.push(tNow('credit.msg.discount', { amount: fmtMMK(voucher.discount) }));
+  lines.push(tNow('credit.msg.thisVoucher', { amount: fmtMMK(voucher.grandTotal) }));
 
   if (voucher.type === 'CONSIGNMENT') {
     lines.push('');
-    lines.push('CONSIGNMENT (sample stock) — not invoiced until sold.');
+    lines.push(tNow('credit.msg.consignment'));
   } else {
-    if (voucher.previousBalance > 0) lines.push(`Previous balance: K ${fmtMMK(voucher.previousBalance)}`);
-    if (voucher.paymentAtIssue > 0) lines.push(`Paid now: −K ${fmtMMK(voucher.paymentAtIssue)}`);
-    lines.push(`TOTAL OUTSTANDING: K ${fmtMMK(voucher.newBalance)}`);
+    if (voucher.previousBalance > 0) {
+      lines.push(tNow('credit.msg.previousBalance', { amount: fmtMMK(voucher.previousBalance) }));
+    }
+    if (voucher.paymentAtIssue > 0) {
+      lines.push(tNow('credit.msg.paidNow', { amount: fmtMMK(voucher.paymentAtIssue) }));
+    }
+    lines.push(tNow('credit.msg.totalOutstanding', { amount: fmtMMK(voucher.newBalance) }));
     lines.push('');
-    lines.push(`Payment due: ${fmtDate(voucher.dueDate)} (${voucher.termDays} days)`);
-    lines.push(`ငွေပေးချေရမည့်ရက်: ${fmtDate(voucher.dueDate)}`);
+    lines.push(
+      tNow('credit.msg.paymentDue', { date: fmtDate(voucher.dueDate), days: fmtDays(voucher.termDays) }),
+    );
+    if (withBurmeseLine()) lines.push(`ငွေပေးချေရမည့်ရက်: ${fmtDate(voucher.dueDate)}`);
   }
 
   lines.push('');

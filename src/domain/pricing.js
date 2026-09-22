@@ -55,19 +55,29 @@ export function resolveLinePrice(product, shopTier = 'STANDARD', modelQty = 0) {
     ? candidates.reduce((lowest, c) => (c.price < lowest.price ? c : lowest))
     : { tier: 'STANDARD', price: standard };
 
+  // Why this tier won — shown in the UI so a rep can explain the price. The
+  // two sources read differently on purpose: a standing rate is about the
+  // shop, a quantity rate is about this order. The UI translates the code;
+  // `reason` is the English form.
+  const reasonCode =
+    best.tier === 'STANDARD'
+      ? 'LIST'
+      : best.tier === shopTier && best.tier !== qtyTierFor(modelQty)
+        ? 'STANDING'
+        : 'QUANTITY';
+
   return {
     tier: best.tier,
     tierLabel: PRICE_TIERS[best.tier]?.label ?? best.tier,
     unitPrice: best.price,
     listPrice: standard,
     discountPct: standard > 0 ? round1(((standard - best.price) / standard) * 100) : 0,
-    // Why this tier won — shown in the UI so a rep can explain the price.
-    // The two sources read differently on purpose: a standing rate is about
-    // the shop, a quantity rate is about this order.
+    reasonCode,
+    modelQty,
     reason:
-      best.tier === 'STANDARD'
+      reasonCode === 'LIST'
         ? 'List price'
-        : best.tier === shopTier && best.tier !== qtyTierFor(modelQty)
+        : reasonCode === 'STANDING'
           ? "Shop's standing rate"
           : `${modelQty} pcs of this model`,
   };

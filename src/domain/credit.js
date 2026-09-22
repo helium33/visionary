@@ -169,11 +169,14 @@ function readOverride(shop, today) {
  * UI can offer the master-password dialog instead of a dead end.
  */
 export function canIssueVoucher(creditState, { amount = 0, isConsignment = false } = {}) {
-  const deny = (code, reason, requiresOverride = true) => ({
+  // `details` carries the figures behind `reason`, so the UI can word the
+  // explanation in the reader's language rather than show this English.
+  const deny = (code, reason, details = {}) => ({
     allowed: false,
-    requiresOverride,
+    requiresOverride: true,
     code,
     reason,
+    details,
   });
 
   // Consignment moves sample stock, not money — never blocked by ageing.
@@ -198,6 +201,7 @@ export function canIssueVoucher(creditState, { amount = 0, isConsignment = false
       'OVERDUE_LOCK',
       `Shop is ${creditState.maxDaysOverdue} day(s) past the ${CREDIT_TERM_DAYS}-day term ` +
         `on K ${creditState.overdueAmount.toLocaleString()}.`,
+      { days: creditState.maxDaysOverdue, term: CREDIT_TERM_DAYS, amount: creditState.overdueAmount },
     );
   }
 
@@ -207,6 +211,7 @@ export function canIssueVoucher(creditState, { amount = 0, isConsignment = false
       'OVER_LIMIT',
       `This voucher takes the balance to K ${projected.toLocaleString()}, over the ` +
         `K ${creditState.creditLimit.toLocaleString()} limit.`,
+      { projected, limit: creditState.creditLimit },
     );
   }
 

@@ -2,6 +2,7 @@ import { addDoc, collection, doc, increment, serverTimestamp, writeBatch } from 
 import { COL, db, isDemoMode } from '../lib/firebase';
 import { computeLandedCost, receiptPlan } from '../domain/landedCost';
 import { logAudit } from './auditService';
+import { tNow } from '../i18n/translate';
 
 /**
  * ---------------------------------------------------------------------------
@@ -48,7 +49,7 @@ export async function receivePurchaseOrder({ po, locationId = 'LOC-MAIN', actor 
   const plan = receiptPlan(po, { locationId });
 
   if (!plan.movements.length) {
-    return { ok: false, message: 'Nothing to receive — every line shows zero received.' };
+    return { ok: false, message: tNow('purchasing.err.nothingToReceive') };
   }
 
   if (isDemoMode) {
@@ -128,7 +129,7 @@ export async function recordExpense({ expense, actor }) {
   };
 
   if (document.amount <= 0) {
-    return { ok: false, message: 'Enter an amount greater than zero.' };
+    return { ok: false, message: tNow('common.amountZero') };
   }
 
   if (isDemoMode) {

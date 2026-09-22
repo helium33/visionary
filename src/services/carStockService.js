@@ -9,6 +9,7 @@ import {
 import { COL, db, isDemoMode } from '../lib/firebase';
 import { settlementPlan } from '../domain/carStock';
 import { logAudit } from './auditService';
+import { tNow } from '../i18n/translate';
 
 const TRIPS = 'carTrips';
 
@@ -55,7 +56,7 @@ export async function openTrip({ rep, locationId, route = [], openingLines = [],
  */
 export async function loadCar({ trip, lines, fromLocationId = 'LOC-MAIN', actor }) {
   if (!lines.length) {
-    return { ok: false, message: 'Nothing selected to load.' };
+    return { ok: false, message: tNow('carstock.err.nothingToLoad') };
   }
 
   if (isDemoMode) {
@@ -122,7 +123,7 @@ export async function loadCar({ trip, lines, fromLocationId = 'LOC-MAIN', actor 
 export async function closeTrip({ trip, reconciliation, returnToWarehouse = true, actor }) {
   const plan = settlementPlan(reconciliation, { returnToWarehouse });
   if (!plan) {
-    return { ok: false, message: 'Count the bag before settling the trip.' };
+    return { ok: false, message: tNow('carstock.err.countFirst') };
   }
 
   const summary = {

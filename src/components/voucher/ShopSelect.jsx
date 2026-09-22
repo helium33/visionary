@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Ban, KeyRound, Lock, MapPin, Search, ShieldCheck, Store } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 import { CREDIT_STATUS } from '../../domain/credit';
-import { PRICE_TIERS } from '../../lib/constants';
+import { townshipLabel, townshipMatches } from '../../constants/districts';
+import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
 import { Button } from '../ui/Button';
 import { StatusPill } from '../ui/StatusPill';
@@ -15,6 +17,7 @@ import { StatusPill } from '../ui/StatusPill';
  * needs in front of the shopkeeper.
  */
 export function ShopSelect({ rows, selectedId, onSelect }) {
+  const { t, locale } = useLocale();
   const [search, setSearch] = useState('');
   const [browsing, setBrowsing] = useState(false);
 
@@ -27,7 +30,7 @@ export function ShopSelect({ rows, selectedId, onSelect }) {
       ({ shop }) =>
         shop.name.toLowerCase().includes(term) ||
         (shop.nameMM ?? '').includes(term) ||
-        shop.township.toLowerCase().includes(term),
+        townshipMatches(shop.township, term),
     );
   }, [rows, search]);
 
@@ -44,16 +47,16 @@ export function ShopSelect({ rows, selectedId, onSelect }) {
             <p className="truncate text-sm font-medium text-ink">{shop.name}</p>
             <p className="flex items-center gap-1 text-2xs text-ink-secondary">
               <MapPin size={10} aria-hidden="true" />
-              {shop.township}
+              {townshipLabel(shop.township, locale)}
               <span className="text-ink-muted">·</span>
-              {PRICE_TIERS[shop.priceTier]?.label ?? shop.priceTier}
+              {t(`labels.priceTier.${shop.priceTier ?? 'STANDARD'}`)}
               <span className="text-ink-muted">·</span>
-              K {fmtMMK(state.outstanding)} outstanding
+              {t('vouchers.outstandingShort', { amount: fmtMMK(state.outstanding) })}
             </p>
           </div>
         </div>
         <Button size="sm" variant="quiet" onClick={() => setBrowsing(true)}>
-          Change shop
+          {t('vouchers.changeShop')}
         </Button>
       </div>
     );
@@ -63,7 +66,7 @@ export function ShopSelect({ rows, selectedId, onSelect }) {
   return (
     <div>
       <label className="relative block">
-        <span className="sr-only">Search shop</span>
+        <span className="sr-only">{t('vouchers.searchShop')}</span>
         <Search
           size={14}
           className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted"
@@ -72,7 +75,7 @@ export function ShopSelect({ rows, selectedId, onSelect }) {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search shop or township"
+          placeholder={t('vouchers.searchShopPlaceholder')}
           className="h-9 w-full rounded-md border border-line-hair bg-surface pl-8 pr-2 text-sm text-ink outline-none"
         />
       </label>
@@ -98,9 +101,9 @@ export function ShopSelect({ rows, selectedId, onSelect }) {
                   <p className="truncate text-sm font-medium text-ink">{shop.name}</p>
                   <p className="flex items-center gap-1 text-2xs text-ink-secondary">
                     <MapPin size={10} aria-hidden="true" />
-                    {shop.township}
+                    {townshipLabel(shop.township, locale)}
                     <span className="text-ink-muted">·</span>
-                    {PRICE_TIERS[shop.priceTier]?.label ?? shop.priceTier}
+                    {t(`labels.priceTier.${shop.priceTier ?? 'STANDARD'}`)}
                   </p>
                 </div>
 
@@ -117,7 +120,7 @@ export function ShopSelect({ rows, selectedId, onSelect }) {
           );
         })}
         {filtered.length === 0 ? (
-          <li className="px-3 py-6 text-center text-xs text-ink-secondary">No shops match.</li>
+          <li className="px-3 py-6 text-center text-xs text-ink-secondary">{t('vouchers.noShops')}</li>
         ) : null}
       </ul>
     </div>
@@ -129,13 +132,13 @@ export function ShopSelect({ rows, selectedId, onSelect }) {
  * decision and offers the one legitimate way past it.
  */
 export function CreditGate({ shop, state, gate, canOverride, onRequestOverride }) {
+  const { t, locale } = useLocale();
   if (!shop) return null;
 
   if (state.override) {
     return (
-      <Banner tone="warning" icon={ShieldCheck} title="Admin override active">
-        Released until {state.override.expiresAt.toLocaleTimeString()}. This voucher will be tagged
-        with the override in the audit log.
+      <Banner tone="warning" icon={ShieldCheck} title={t('vouchers.overrideActive')}>
+        {t('vouchers.overrideBody', { time: fmtDate(state.override.expiresAt, 'HH:mm') })}
       </Banner>
     );
   }
@@ -145,10 +148,13 @@ export function CreditGate({ shop, state, gate, canOverride, onRequestOverride }
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-secondary">
         <StatusPill status={state.status} size="sm" />
         <span>
-          Outstanding K {fmtMMK(state.outstanding)}
           {state.creditLimit > 0
-            ? ` of K ${fmtMMK(state.creditLimit)} limit · K ${fmtMMK(state.availableCredit)} available`
-            : ' · no credit limit set'}
+            ? t('vouchers.outstandingLimit', {
+                outstanding: fmtMMK(state.outstanding),
+                limit: fmtMMK(state.creditLimit),
+                available: fmtMMK(state.availableCredit),
+              })
+            : t('vouchers.outstandingNoLimit', { outstanding: fmtMMK(state.outstanding) })}
         </span>
       </div>
     );
@@ -158,19 +164,37 @@ export function CreditGate({ shop, state, gate, canOverride, onRequestOverride }
     <Banner
       tone="critical"
       icon={gate.code === 'OVER_LIMIT' ? Ban : Lock}
-      title={gate.code === 'OVER_LIMIT' ? 'Over credit limit' : 'Shop is locked'}
+      title={t(gate.code === 'OVER_LIMIT' ? 'vouchers.overLimit' : 'vouchers.shopLocked')}
       action={
         canOverride ? (
           <Button size="sm" variant="danger" icon={KeyRound} onClick={onRequestOverride}>
-            Release with master password
+            {t('vouchers.releaseWithPassword')}
           </Button>
         ) : null
       }
     >
-      {gate.reason}
-      {!canOverride ? ' Ask the office to release this shop — only an admin can.' : ''}
+      {gateReasonText(gate, t)}
+      {!canOverride ? ` ${t('vouchers.askOffice')}` : ''}
     </Banner>
   );
+}
+
+/**
+ * The gate's reason in the reader's language, built from its code and
+ * figures rather than the English `reason` the domain module carries.
+ */
+export function gateReasonText(gate, t) {
+  const d = gate?.details ?? {};
+  switch (gate?.code) {
+    case 'MANUAL_HOLD':
+      return t('vouchers.gate.MANUAL_HOLD');
+    case 'OVERDUE_LOCK':
+      return t('vouchers.gate.OVERDUE_LOCK', { days: d.days, term: d.term, amount: fmtMMK(d.amount) });
+    case 'OVER_LIMIT':
+      return t('vouchers.gate.OVER_LIMIT', { projected: fmtMMK(d.projected), limit: fmtMMK(d.limit) });
+    default:
+      return gate?.reason ?? null;
+  }
 }
 
 function Banner({ tone, icon: Icon, title, children, action }) {

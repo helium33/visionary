@@ -1,6 +1,7 @@
 import { Construction } from 'lucide-react';
 import { Card, CardBody } from '../components/ui/Card';
 import { PageHeader } from '../components/layout/AppShell';
+import { useLocale } from '../context/LocaleContext';
 
 /**
  * Honest stub. These routes exist so navigation and role-based menu filtering
@@ -8,18 +9,16 @@ import { PageHeader } from '../components/layout/AppShell';
  * are specified in docs/ARCHITECTURE.md.
  */
 export default function Placeholder({ title, scope = [] }) {
+  const { t } = useLocale();
   return (
     <>
-      <PageHeader title={title} subtitle="Planned module — not built in this milestone" />
+      <PageHeader title={title ?? t('ui.notFound')} subtitle={t('ui.plannedModule')} />
       <Card>
         <CardBody>
           <div className="flex items-start gap-3">
             <Construction size={18} className="mt-0.5 shrink-0 text-ink-muted" aria-hidden="true" />
             <div>
-              <p className="text-sm text-ink">
-                The schema, security rules and routing for this module are in place; the screens are
-                not built yet.
-              </p>
+              <p className="text-sm text-ink">{t('ui.plannedModuleBody')}</p>
               {scope.length ? (
                 <ul className="mt-3 space-y-1 text-xs text-ink-secondary">
                   {scope.map((item) => (

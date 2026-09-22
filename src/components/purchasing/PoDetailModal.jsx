@@ -6,6 +6,7 @@ import { receivePurchaseOrder } from '../../services/purchasingService';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { useToast } from '../ui/Toast';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -22,6 +23,7 @@ import { ChargeSummary, LandedCostTable } from './LandedCostTable';
  */
 export function PoDetailModal({ open, po, productsById, locations, today, onClose, onReceived }) {
   const { user } = useAuth();
+  const { t } = useLocale();
   const toast = useToast();
   const [charges, setCharges] = useState(null);
   const [received, setReceived] = useState({});
@@ -62,6 +64,7 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
   if (!open || !po || !costed) return null;
 
   const arrival = poArrivalState(po, today);
+  const costCount = (count) => t(count === 1 ? 'purchasing.costOne' : 'purchasing.costMany', { count });
 
   const close = () => {
     setCharges(null);
@@ -79,8 +82,11 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
       return;
     }
     toast.push(
-      `${po.poNo} received · ${result.plan.movements.reduce((s, m) => s + m.qty, 0)} pcs into stock · ` +
-        `${result.plan.costUpdates.length} product cost${result.plan.costUpdates.length === 1 ? '' : 's'} restated`,
+      t('purchasing.receivedToast', {
+        po: po.poNo,
+        pieces: result.plan.movements.reduce((s, m) => s + m.qty, 0),
+        costs: costCount(result.plan.costUpdates.length),
+      }),
       { tone: 'success' },
     );
     onReceived?.(result);
@@ -97,11 +103,11 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            Close
+            {t('ui.close')}
           </Button>
           {editable ? (
             <Button variant="primary" icon={PackageCheck} disabled={saving} onClick={onReceive}>
-              {saving ? 'Receiving…' : 'Receive into stock'}
+              {saving ? t('purchasing.receiving') : t('purchasing.receiveIntoStock')}
             </Button>
           ) : null}
         </>
@@ -111,16 +117,18 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-secondary">
           <StatusPill
             tone={arrival.tone}
-            label={arrival.label}
+            label={t(`purchasing.status.${arrival.key}`)}
             size="sm"
-            detail={arrival.overdue ? `${arrival.daysLate}d late` : null}
+            detail={arrival.overdue ? t('purchasing.daysLate', { n: arrival.daysLate }) : null}
           />
           <span className="flex items-center gap-1">
             <Ship size={12} aria-hidden="true" />
-            Ordered {fmtDate(po.orderedAt)}
+            {t('purchasing.orderedOn', { date: fmtDate(po.orderedAt) })}
           </span>
           <span>
-            {po.receivedAt ? `Received ${fmtDate(po.receivedAt)}` : `Expected ${fmtDate(po.expectedAt)}`}
+            {po.receivedAt
+              ? t('purchasing.receivedOn', { date: fmtDate(po.receivedAt) })
+              : t('purchasing.expectedOn', { date: fmtDate(po.expectedAt) })}
           </span>
           {po.note ? <span className="text-ink-muted">{po.note}</span> : null}
         </div>
@@ -129,10 +137,9 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
           <div className="min-w-0">
             <div className="rounded-card border border-line-hair">
               <div className="border-b border-line-hair px-3 py-2">
-                <p className="text-xs font-medium text-ink">Landed cost breakdown</p>
+                <p className="text-xs font-medium text-ink">{t('purchasing.breakdownTitle')}</p>
                 <p className="text-2xs text-ink-secondary">
-                  Factory price plus its share of charges, per piece
-                  {editable ? ' — costed on what arrives' : ''}
+                  {t(editable ? 'purchasing.breakdownSubReceiving' : 'purchasing.breakdownSub')}
                 </p>
               </div>
               <LandedCostTable costed={costed} productsById={productsById} />
@@ -143,11 +150,11 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
             {editable ? (
               <div className="rounded-card border border-line-hair">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-hair px-3 py-2">
-                  <p className="text-xs font-medium text-ink">Receive</p>
+                  <p className="text-xs font-medium text-ink">{t('purchasing.receive')}</p>
                   <label className="flex items-center gap-1.5 text-2xs text-ink-secondary">
-                    Into
+                    {t('purchasing.into')}
                     <select
-                      aria-label="Receiving location"
+                      aria-label={t('purchasing.receivingLocation')}
                       value={locationId}
                       onChange={(e) => setLocationId(e.target.value)}
                       className="h-7 rounded border border-line-hair bg-surface px-1.5 text-2xs text-ink"
@@ -175,10 +182,12 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
                           <span className="text-ink-secondary">{line.colorCode}</span>
                         </span>
                         <span className="flex items-center gap-2 text-2xs text-ink-secondary">
-                          ordered {line.qty}
+                          {t('purchasing.orderedQty', { n: line.qty })}
                           <input
                             inputMode="numeric"
-                            aria-label={`Received quantity for ${line.modelNo} ${line.colorCode}`}
+                            aria-label={t('purchasing.receivedQtyFor', {
+                              item: `${line.modelNo} ${line.colorCode}`,
+                            })}
                             value={value}
                             onChange={(e) =>
                               setReceived((prev) => ({ ...prev, [key]: e.target.value }))
@@ -196,9 +205,9 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
                 {plan.shortfalls.length ? (
                   <p className="flex items-start gap-2 border-t border-line-hair bg-wash-serious px-3 py-2 text-2xs text-ink-secondary">
                     <AlertTriangle size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-                    Short by{' '}
-                    {plan.shortfalls.map((s) => `${s.modelNo} ${s.colorCode} (${s.short})`).join(', ')}
-                    . Only what arrived goes into stock, and the cost is spread across that.
+                    {t('purchasing.shortBy', {
+                      list: plan.shortfalls.map((s) => `${s.modelNo} ${s.colorCode} (${s.short})`).join(', '),
+                    })}
                   </p>
                 ) : null}
               </div>
@@ -218,16 +227,13 @@ export function PoDetailModal({ open, po, productsById, locations, today, onClos
             />
 
             {editable ? (
-              <p className="text-2xs text-ink-muted">
-                Freight invoices arrive after the goods do, so charges stay editable until the order
-                is received. After that the figures are frozen — they are what the stock was valued
-                at.
-              </p>
+              <p className="text-2xs text-ink-muted">{t('purchasing.editableNote')}</p>
             ) : (
               <p className="text-2xs text-ink-muted">
-                Received {fmtDate(po.receivedAt)}. These figures are what{' '}
-                {plan.costUpdates.length} product cost
-                {plan.costUpdates.length === 1 ? '' : 's'} were set to.
+                {t('purchasing.frozenNote', {
+                  date: fmtDate(po.receivedAt),
+                  costs: costCount(plan.costUpdates.length),
+                })}
               </p>
             )}
             </div>

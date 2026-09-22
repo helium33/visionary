@@ -19,8 +19,9 @@ import {
   tooltipItemStyle,
   tooltipLabelStyle,
 } from '../charts/rechartsTheme';
-import { districtLabel, districtShortLabel } from '../../constants/districts';
+import { districtLabel, districtShortLabel, townshipLabel } from '../../constants/districts';
 import { fmtMMK } from '../../lib/format';
+import { useLocale } from '../../context/LocaleContext';
 
 /**
  * ---------------------------------------------------------------------------
@@ -53,6 +54,7 @@ const districtColor = (index) => CHART_COLORS.series[index % CHART_COLORS.series
  * is kept anyway, as the same cheap insurance `DebtAgeingChart` uses.
  */
 export function DistrictBarChart({ rows, metric, locale, emptyLabel }) {
+  const { t } = useLocale();
   const data = useMemo(
     () =>
       rows.map((row, index) => ({
@@ -94,7 +96,10 @@ export function DistrictBarChart({ rows, metric, locale, emptyLabel }) {
             width={48}
           />
           <Tooltip
-            formatter={(value) => [metric === 'volume' ? `${value.toLocaleString()} pcs` : `K ${fmtMMK(value)}`, undefined]}
+            formatter={(value) => [
+              metric === 'volume' ? t('common.pcs', { n: fmtMMK(value) }) : `K ${fmtMMK(value)}`,
+              undefined,
+            ]}
             labelFormatter={(_label, payload) => payload?.[0]?.payload?.fullLabel ?? _label}
             cursor={{ fill: 'var(--raised)', opacity: 0.5 }}
             contentStyle={tooltipContentStyle()}
@@ -120,6 +125,7 @@ export function DistrictBarChart({ rows, metric, locale, emptyLabel }) {
  * layer, so the best-selling township always reads at the top.
  */
 export function TownshipDrilldownChart({ rows, emptyLabel }) {
+  const { t, locale } = useLocale();
   const total = rows.reduce((sum, row) => sum + row.revenue, 0);
   if (total === 0) {
     return <p className="py-10 text-center text-xs text-ink-secondary">{emptyLabel}</p>;
@@ -150,12 +156,17 @@ export function TownshipDrilldownChart({ rows, emptyLabel }) {
             axisLine={{ stroke: CHART_COLORS.axis }}
             tickLine={false}
             width={128}
+            tickFormatter={(value) => townshipLabel(value, locale)}
           />
           <Tooltip
-            formatter={(value, _name, props) => [
-              `K ${fmtMMK(value)} · ${props?.payload?.count ?? 0} vouchers`,
-              undefined,
-            ]}
+            formatter={(value, _name, props) => {
+              const count = props?.payload?.count ?? 0;
+              return [
+                `K ${fmtMMK(value)} · ${t(count === 1 ? 'charts.voucherOne' : 'charts.voucherMany', { count })}`,
+                undefined,
+              ];
+            }}
+            labelFormatter={(label) => townshipLabel(label, locale)}
             cursor={{ fill: 'var(--raised)', opacity: 0.5 }}
             contentStyle={tooltipContentStyle()}
             labelStyle={tooltipLabelStyle}

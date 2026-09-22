@@ -3,6 +3,7 @@ import { AlertTriangle, FileText, KeyRound, ShieldQuestion, Users as UsersIcon }
 import { summariseAuditActivity } from '../domain/audit';
 import { subscribeAuditLogs, subscribeUsers } from '../services/dataSource';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 import { useToday } from '../hooks/useToday';
 import { AuditLogTable } from '../components/admin/AuditLogTable';
 import { MasterPasswordCard } from '../components/admin/MasterPasswordCard';
@@ -14,8 +15,8 @@ import { StatTile } from '../components/ui/StatTile';
 import { PageHeader } from '../components/layout/AppShell';
 
 const TABS = [
-  { key: 'USERS', label: 'Users & roles' },
-  { key: 'AUDIT', label: 'Audit log' },
+  { key: 'USERS', label: 'admin.tabUsers' },
+  { key: 'AUDIT', label: 'admin.tabAudit' },
 ];
 
 /**
@@ -33,6 +34,7 @@ const TABS = [
  */
 export default function Admin() {
   const { user, isDemoMode } = useAuth();
+  const { t } = useLocale();
   const today = useToday();
   const [tab, setTab] = useState('USERS');
   const [users, setUsers] = useState([]);
@@ -61,19 +63,19 @@ export default function Admin() {
     };
   }, []);
 
-  const activity = useMemo(() => summariseAuditActivity(entries), [entries]);
+  const activity = useMemo(() => summariseAuditActivity(entries, t), [entries, t]);
   const activeCount = users.filter((u) => u.active !== false).length;
 
   if (user?.role !== 'ADMIN') {
     return (
       <>
-        <PageHeader title="Users & audit" />
+        <PageHeader title={t('admin.title')} />
         <Card>
           <CardBody>
             <EmptyState
               icon={ShieldQuestion}
-              title="Admins only"
-              description="Ask an admin to make this change, or to grant you the admin role from this same screen."
+              title={t('admin.adminsOnly')}
+              description={t('admin.adminsOnlyHint')}
             />
           </CardBody>
         </Card>
@@ -84,37 +86,48 @@ export default function Admin() {
   return (
     <>
       <PageHeader
-        title="Users & audit"
-        subtitle={isDemoMode ? 'Demo mode — edits here last for this session only' : undefined}
+        title={t('admin.title')}
+        subtitle={isDemoMode ? t('admin.demoSubtitle') : undefined}
       />
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatTile label="Active users" value={activeCount} unit="" raw icon={UsersIcon} footnote={`${users.length} total`} />
           <StatTile
-            label="Audit entries"
+            label={t('admin.statActive')}
+            value={activeCount}
+            unit=""
+            raw
+            icon={UsersIcon}
+            footnote={t('admin.statTotal', { count: users.length })}
+          />
+          <StatTile
+            label={t('admin.statAudit')}
             value={activity.total}
             unit=""
             raw
             icon={FileText}
-            footnote="all time, append-only"
+            footnote={t('admin.statAuditNote')}
           />
           <StatTile
-            label="Sensitive actions"
+            label={t('admin.statSensitive')}
             value={activity.criticalCount}
             unit=""
             raw
             icon={AlertTriangle}
             tone={activity.criticalCount > 0 ? 'critical' : 'neutral'}
-            footnote="overrides, holds, role & password changes"
+            footnote={t('admin.statSensitiveNote')}
           />
           <StatTile
-            label="Most active"
+            label={t('admin.statMostActive')}
             value={activity.byActor[0]?.key ?? '—'}
             unit=""
             raw
             icon={KeyRound}
-            footnote={activity.byActor[0] ? `${activity.byActor[0].value} entries` : 'nothing yet'}
+            footnote={
+              activity.byActor[0]
+                ? t('admin.statEntries', { count: activity.byActor[0].value })
+                : t('admin.nothingYet')
+            }
           />
         </div>
 
@@ -133,7 +146,7 @@ export default function Admin() {
                         : 'text-ink-secondary hover:bg-raised hover:text-ink'
                     }`}
                   >
-                    {option.label}
+                    {t(option.label)}
                     <span className="ml-1.5 tabular-nums opacity-70">
                       {option.key === 'USERS' ? users.length : entries.length}
                     </span>
@@ -153,8 +166,8 @@ export default function Admin() {
             {tab === 'USERS' ? (
               <Card>
                 <CardHeader
-                  title="What each role can do"
-                  subtitle="The same list the security rules enforce — this screen never grants anything on its own"
+                  title={t('admin.rolesTitle')}
+                  subtitle={t('admin.rolesSub')}
                   icon={ShieldQuestion}
                 />
                 <RoleMatrix />
@@ -164,7 +177,7 @@ export default function Admin() {
 
           <div className="space-y-4">
             <Card>
-              <CardHeader title="Master password" icon={KeyRound} />
+              <CardHeader title={t('admin.masterPassword')} icon={KeyRound} />
               <CardBody>
                 <MasterPasswordCard />
               </CardBody>

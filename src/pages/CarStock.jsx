@@ -19,7 +19,9 @@ import {
 } from '../services/dataSource';
 import { fmtDateTime } from '../lib/dates';
 import { fmtMMK } from '../lib/format';
+import { townshipLabel } from '../constants/districts';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 import { useCatalogue } from '../hooks/useCatalogue';
 import { useToday } from '../hooks/useToday';
 import { ReconcilePanel } from '../components/carstock/ReconcilePanel';
@@ -48,6 +50,7 @@ import { PageHeader } from '../components/layout/AppShell';
  */
 export default function CarStock() {
   const { user } = useAuth();
+  const { t, locale } = useLocale();
   const today = useToday();
   const toast = useToast();
   const { byId, frames, ensureVariants, loading: catalogueLoading } = useCatalogue({
@@ -102,7 +105,7 @@ export default function CarStock() {
   );
 
   const selected = useMemo(
-    () => sorted.find((trip) => trip.id === selectedId) ?? sorted.find((t) => t.status === 'OPEN') ?? sorted[0],
+    () => sorted.find((trip) => trip.id === selectedId) ?? sorted.find((trip) => trip.status === 'OPEN') ?? sorted[0],
     [sorted, selectedId],
   );
 
@@ -160,7 +163,10 @@ export default function CarStock() {
     setLoadingCar(false);
     toast.push(
       result.ok
-        ? `Loaded ${lines.reduce((s, l) => s + l.qty, 0)} pcs into ${selected.repName}'s bag`
+        ? t('carstock.loadedToast', {
+            pieces: lines.reduce((s, l) => s + l.qty, 0),
+            rep: selected.repName,
+          })
         : result.message,
       { tone: result.ok ? 'success' : 'error' },
     );
@@ -169,45 +175,45 @@ export default function CarStock() {
   return (
     <>
       <PageHeader
-        title="Car stock"
-        subtitle="Load a rep's bag, then reconcile stock, cash and debt when they come back"
+        title={t('carstock.title')}
+        subtitle={t('carstock.subtitle')}
       />
 
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile
-            label="Trips out"
+            label={t('carstock.statTrips')}
             value={openTrips.length}
             unit=""
             raw
             icon={Truck}
-            footnote={openTrips.map((t) => t.repName).join(', ') || 'everyone is in'}
+            footnote={openTrips.map((trip) => trip.repName).join(', ') || t('carstock.statEveryoneIn')}
           />
           <StatTile
-            label="Pieces on the road"
+            label={t('carstock.statOnRoad')}
             value={onRoad}
             unit=""
             raw
             icon={Boxes}
-            footnote="expected in bags right now"
+            footnote={t('carstock.statOnRoadNote')}
           />
           <StatTile
-            label="Cash to come in"
+            label={t('carstock.statCash')}
             value={cashOut}
             icon={Banknote}
-            footnote="collected, not yet handed over"
+            footnote={t('carstock.statCashNote')}
           />
           <StatTile
-            label="Credit written today"
+            label={t('carstock.statCredit')}
             value={creditOut}
             icon={CreditCard}
-            footnote="now on 14-day terms"
+            footnote={t('carstock.statCreditNote')}
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[18rem_minmax(0,1fr)]">
           <Card className="h-fit">
-            <CardHeader title="Trips" icon={Users} />
+            <CardHeader title={t('carstock.trips')} icon={Users} />
             {loading ? (
               <SkeletonRows rows={3} />
             ) : (
@@ -232,12 +238,12 @@ export default function CarStock() {
                               {trip.tripNo}
                             </p>
                           </div>
-                          <StatusPill tone={meta.tone} label={meta.label} size="sm" />
+                          <StatusPill tone={meta.tone} label={t(`carstock.status.${meta.key}`)} size="sm" />
                         </div>
                         {trip.route?.length ? (
                           <p className="mt-1 flex items-center gap-1 text-2xs text-ink-muted">
                             <MapPin size={10} aria-hidden="true" />
-                            {trip.route.join(' · ')}
+                            {trip.route.map((name) => townshipLabel(name, locale)).join(' · ')}
                           </p>
                         ) : null}
                       </button>
@@ -246,7 +252,7 @@ export default function CarStock() {
                 })}
                 {sorted.length === 0 ? (
                   <li className="px-4 py-6 text-center text-xs text-ink-secondary">
-                    No trips yet. {reps.length} reps available.
+                    {t('carstock.noTrips', { count: reps.length })}
                   </li>
                 ) : null}
               </ul>
@@ -258,7 +264,7 @@ export default function CarStock() {
               <Card>
                 <CardBody>
                   <p className="py-8 text-center text-xs text-ink-secondary">
-                    Select a trip to load or reconcile it.
+                    {t('carstock.selectTrip')}
                   </p>
                 </CardBody>
               </Card>
@@ -267,14 +273,19 @@ export default function CarStock() {
                 <Card>
                   <CardHeader
                     title={`${selected.repName} · ${selected.tripNo}`}
-                    subtitle={`Out since ${fmtDateTime(selected.openedAt)}${
-                      selected.closedAt ? ` · settled ${fmtDateTime(selected.closedAt)}` : ''
-                    }`}
+                    subtitle={
+                      selected.closedAt
+                        ? t('carstock.outSinceSettled', {
+                            date: fmtDateTime(selected.openedAt),
+                            settled: fmtDateTime(selected.closedAt),
+                          })
+                        : t('carstock.outSince', { date: fmtDateTime(selected.openedAt) })
+                    }
                     icon={Truck}
                     action={
                       <StatusPill
                         tone={(TRIP_STATUS[selected.status] ?? TRIP_STATUS.OPEN).tone}
-                        label={(TRIP_STATUS[selected.status] ?? TRIP_STATUS.OPEN).label}
+                        label={t(`carstock.status.${(TRIP_STATUS[selected.status] ?? TRIP_STATUS.OPEN).key}`)}
                         size="sm"
                       />
                     }
@@ -282,14 +293,20 @@ export default function CarStock() {
 
                   {reconciliation ? (
                     <CardBody className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                      <Fact label="Took out" value={`${reconciliation.piecesOut} pcs`} />
-                      <Fact label="Sold" value={`${reconciliation.piecesSold} pcs`} />
                       <Fact
-                        label="Cash collected"
+                        label={t('carstock.factTookOut')}
+                        value={t('common.pcs', { n: reconciliation.piecesOut })}
+                      />
+                      <Fact
+                        label={t('carstock.factSold')}
+                        value={t('common.pcs', { n: reconciliation.piecesSold })}
+                      />
+                      <Fact
+                        label={t('carstock.factCash')}
                         value={`K ${fmtMMK(reconciliation.expectedCash, { compact: true })}`}
                       />
                       <Fact
-                        label="Credit written"
+                        label={t('carstock.factCredit')}
                         value={`K ${fmtMMK(reconciliation.creditIssued, { compact: true })}`}
                       />
                     </CardBody>
@@ -299,8 +316,8 @@ export default function CarStock() {
                 {canLoad ? (
                   <Card>
                     <CardHeader
-                      title="Load the bag"
-                      subtitle="Moves stock from the main warehouse into this rep's car"
+                      title={t('carstock.loadTitle')}
+                      subtitle={t('carstock.loadSub')}
                       icon={PackagePlus}
                     />
                     <CardBody className="pb-0">
@@ -315,7 +332,7 @@ export default function CarStock() {
                         product={selectedModel}
                         locationId="LOC-MAIN"
                         purpose="TRANSFER"
-                        addLabel={loadingCar ? 'Loading…' : 'Load'}
+                        addLabel={loadingCar ? t('carstock.loading') : t('carstock.load')}
                         onAdd={onLoad}
                       />
                     </div>
@@ -324,12 +341,10 @@ export default function CarStock() {
 
                 <Card>
                   <CardHeader
-                    title={selected.status === 'CLOSED' ? 'Reconciliation' : 'Count in'}
-                    subtitle={
-                      selected.status === 'CLOSED'
-                        ? 'Settled — stock, cash and debt as they were counted'
-                        : 'Stock, cash and debt must tie out together'
-                    }
+                    title={t(selected.status === 'CLOSED' ? 'carstock.reconciliation' : 'carstock.countIn')}
+                    subtitle={t(
+                      selected.status === 'CLOSED' ? 'carstock.reconciledSub' : 'carstock.countInSub',
+                    )}
                     icon={Banknote}
                   />
                   <CardBody>
@@ -357,19 +372,20 @@ export default function CarStock() {
 }
 
 function ClosedSummary({ reconciliation }) {
+  const { t } = useLocale();
   const short = reconciliation.shortPieces > 0;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Fact label="Should have had" value={`${reconciliation.piecesExpected} pcs`} />
-        <Fact label="Counted" value={`${reconciliation.piecesCounted ?? 0} pcs`} />
+        <Fact label={t('carstock.shouldHaveHad')} value={t('common.pcs', { n: reconciliation.piecesExpected })} />
+        <Fact label={t('carstock.counted')} value={t('common.pcs', { n: reconciliation.piecesCounted ?? 0 })} />
         <Fact
-          label="Short"
-          value={short ? `${reconciliation.shortPieces} pcs` : 'none'}
+          label={t('carstock.short')}
+          value={short ? t('common.pcs', { n: reconciliation.shortPieces }) : t('carstock.none')}
           tone={short ? 'critical' : 'good'}
         />
         <Fact
-          label="Cash variance"
+          label={t('carstock.cashVariance')}
           value={
             reconciliation.cashVariance == null
               ? '—'
@@ -384,9 +400,9 @@ function ClosedSummary({ reconciliation }) {
           <table className="w-full min-w-[420px] text-sm">
             <thead>
               <tr className="border-b border-line-hair text-left text-2xs text-ink-secondary">
-                <th className="px-3 py-2 font-medium">Item</th>
-                <th className="px-3 py-2 text-right font-medium">Short</th>
-                <th className="px-3 py-2 text-right font-medium">At cost</th>
+                <th className="px-3 py-2 font-medium">{t('carstock.colItem')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('carstock.colShort')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('carstock.colAtCost')}</th>
               </tr>
             </thead>
             <tbody>
@@ -408,7 +424,7 @@ function ClosedSummary({ reconciliation }) {
           </table>
         </div>
       ) : (
-        <p className="text-xs text-status-good">Everything tied out — bag and cash both agreed.</p>
+        <p className="text-xs text-status-good">{t('carstock.allTiedOut')}</p>
       )}
 
       {reconciliation.trip.cash?.note ? (

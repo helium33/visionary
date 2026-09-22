@@ -3,11 +3,14 @@ import {
   ALL_TOWNSHIPS,
   DISTRICTS,
   DISTRICT_ORDER,
+  TOWNSHIP_LABELS_MM,
   YANGON_DISTRICTS,
   districtLabel,
   districtShortLabel,
   getDistrictForTownship,
   groupByDistrict,
+  townshipLabel,
+  townshipMatches,
 } from './districts';
 
 describe('getDistrictForTownship — the shop-form auto-categorisation', () => {
@@ -106,5 +109,26 @@ describe('groupByDistrict', () => {
   it('accepts a custom accessor for a differently-shaped row', () => {
     const { buckets } = groupByDistrict([{ shopTownship: 'Dala' }], (r) => r.shopTownship);
     expect(buckets.get(DISTRICTS.SOUTH)).toHaveLength(1);
+  });
+});
+
+describe('township names in Burmese', () => {
+  it('has a Burmese name for every township a shop can be in', () => {
+    expect(ALL_TOWNSHIPS.filter((name) => !TOWNSHIP_LABELS_MM[name])).toEqual([]);
+  });
+
+  it('shows the stored name in English and the Burmese one in Myanmar', () => {
+    expect(townshipLabel('Latha', 'en')).toBe('Latha');
+    expect(townshipLabel('Latha', 'mm')).toBe('လသာ');
+  });
+
+  it('falls back to the stored name for a township it does not know', () => {
+    expect(townshipLabel('Somewhere New', 'mm')).toBe('Somewhere New');
+  });
+
+  it('matches a search in either language', () => {
+    expect(townshipMatches('Latha', 'lat')).toBe(true);
+    expect(townshipMatches('Latha', 'လသာ')).toBe(true);
+    expect(townshipMatches('Latha', 'bahan')).toBe(false);
   });
 });

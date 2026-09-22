@@ -7,6 +7,7 @@ import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
 import { recordPayment } from '../../services/creditService';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { useToast } from '../ui/Toast';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -22,6 +23,7 @@ import { Modal } from '../ui/Modal';
  */
 export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRecorded }) {
   const { user } = useAuth();
+  const { t } = useLocale();
   const toast = useToast();
   const [submitting, setSubmitting] = useState(false);
   const { register, control, handleSubmit, reset } = useForm({
@@ -59,10 +61,13 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
       toast.push(result.message, { tone: 'error' });
       return;
     }
+    const count = result.allocations.length;
     toast.push(
-      `Receipt ${result.payment.receiptNo} · K ${fmtMMK(result.applied)} applied to ` +
-        `${result.allocations.length} voucher${result.allocations.length === 1 ? '' : 's'}` +
-        (result.clearsLock ? '. Shop released — overdue balance cleared.' : '.'),
+      t(result.clearsLock ? 'credit.receiptAppliedCleared' : 'credit.receiptApplied', {
+        no: result.payment.receiptNo,
+        amount: fmtMMK(result.applied),
+        vouchers: t(count === 1 ? 'charts.voucherOne' : 'charts.voucherMany', { count }),
+      }),
       { tone: 'success' },
     );
     onRecorded?.(result);
@@ -72,22 +77,22 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
   if (!open || !shop) return null;
 
   const quickAmounts = [
-    state.oldestAging?.balanceDue,
-    state.overdueAmount,
-    state.outstanding,
-  ].filter((v, i, arr) => v > 0 && arr.indexOf(v) === i);
+    ['quickOldest', state.oldestAging?.balanceDue],
+    ['quickOverdue', state.overdueAmount],
+    ['quickAll', state.outstanding],
+  ].filter(([, v], i, arr) => v > 0 && arr.findIndex(([, w]) => w === v) === i);
 
   return (
     <Modal
       open={open}
       onClose={close}
       width="max-w-2xl"
-      title="Record payment"
-      subtitle={`${shop.name} · outstanding K ${fmtMMK(state.outstanding)}`}
+      title={t('credit.recordPayment')}
+      subtitle={t('credit.payOutstanding', { shop: shop.name, amount: fmtMMK(state.outstanding) })}
       footer={
         <>
           <Button variant="ghost" onClick={close}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -95,7 +100,7 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
             disabled={submitting || amount <= 0}
             onClick={handleSubmit(onSubmit)}
           >
-            {submitting ? 'Posting…' : `Post K ${fmtMMK(amount)}`}
+            {submitting ? t('credit.posting') : t('credit.postAmount', { amount: fmtMMK(amount) })}
           </Button>
         </>
       }
@@ -104,7 +109,7 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <div>
             <label htmlFor="pay-amount" className="mb-1 block text-xs font-medium text-ink">
-              Amount received (MMK)
+              {t('credit.amountReceived')}
             </label>
             <input
               id="pay-amount"
@@ -118,7 +123,7 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
           </div>
           <div>
             <label htmlFor="pay-method" className="mb-1 block text-xs font-medium text-ink">
-              Method
+              {t('credit.method')}
             </label>
             <select
               id="pay-method"
@@ -127,7 +132,7 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
             >
               {PAYMENT_METHODS.map((m) => (
                 <option key={m.key} value={m.key}>
-                  {m.label}
+                  {t(`labels.paymentMethod.${m.key}`)}
                 </option>
               ))}
             </select>
@@ -135,15 +140,14 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
         </div>
 
         <div className="flex flex-wrap gap-1.5">
-          {quickAmounts.map((value, i) => (
+          {quickAmounts.map(([labelKey, value]) => (
             <button
               key={value}
               type="button"
               onClick={() => reset({ amount: String(value) }, { keepValues: false })}
               className="rounded border border-line-hair px-2 py-1 text-xs text-ink-secondary hover:bg-raised hover:text-ink"
             >
-              {['Oldest voucher', 'Clear overdue', 'Settle all'][i] ?? 'Amount'} · K{' '}
-              {fmtMMK(value, { compact: true })}
+              {t(`credit.${labelKey}`)} · K {fmtMMK(value, { compact: true })}
             </button>
           ))}
         </div>
@@ -152,81 +156,82 @@ export function RecordPaymentModal({ open, shop, state, vouchers, onClose, onRec
         <div className="rounded-card border border-line-hair">
           <div className="flex items-center gap-2 border-b border-line-hair px-3 py-2">
             <Banknote size={14} className="text-ink-muted" aria-hidden="true" />
-            <p className="text-xs font-medium text-ink">
-              Allocation preview — oldest voucher first
-            </p>
+            <p className="text-xs font-medium text-ink">{t('credit.allocationPreview')}</p>
           </div>
 
           {preview.allocations.length === 0 ? (
-            <p className="px-3 py-4 text-xs text-ink-secondary">
-              Enter an amount to see which vouchers it settles.
-            </p>
+            <p className="px-3 py-4 text-xs text-ink-secondary">{t('credit.enterAmountHint')}</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-2xs text-ink-secondary">
-                  <th className="px-3 py-1.5 font-medium">Voucher</th>
-                  <th className="px-3 py-1.5 font-medium">Due</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Balance</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Applied</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Remaining</th>
-                </tr>
-              </thead>
-              <tbody>
-                {preview.allocations.map((alloc) => (
-                  <tr key={alloc.voucherId} className="border-t border-line-hair">
-                    <td className="px-3 py-2 tabular-nums text-ink">
-                      {alloc.voucherNo}
-                      {alloc.settles ? (
-                        <span className="ml-1.5 rounded bg-wash-good px-1 py-0.5 text-2xs text-status-good">
-                          settled
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-xs text-ink-secondary">
-                      {fmtDate(alloc.dueDate, 'dd MMM')}
-                      {alloc.daysOverdue > 0 ? (
-                        <span className="ml-1 text-status-critical">+{alloc.daysOverdue}d</span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-ink-secondary">
-                      {fmtMMK(alloc.balanceBefore)}
-                    </td>
-                    <td className="px-3 py-2 text-right font-medium tabular-nums text-ink">
-                      {fmtMMK(alloc.amount)}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-ink-secondary">
-                      {fmtMMK(alloc.balanceAfter)}
-                    </td>
+            // Scrolls sideways on a narrow phone rather than clipping the
+            // last column — Burmese headers run wider than English ones.
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="whitespace-nowrap text-left text-2xs text-ink-secondary">
+                    <th className="px-3 py-1.5 font-medium">{t('credit.colVoucher')}</th>
+                    <th className="px-3 py-1.5 font-medium">{t('credit.colDue')}</th>
+                    <th className="px-3 py-1.5 text-right font-medium">{t('credit.colBalance')}</th>
+                    <th className="px-3 py-1.5 text-right font-medium">{t('credit.colApplied')}</th>
+                    <th className="px-3 py-1.5 text-right font-medium">{t('credit.colRemaining')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {preview.allocations.map((alloc) => (
+                    <tr key={alloc.voucherId} className="border-t border-line-hair">
+                      <td className="whitespace-nowrap px-3 py-2 tabular-nums text-ink">
+                        {alloc.voucherNo}
+                        {alloc.settles ? (
+                          <span className="ml-1.5 rounded bg-wash-good px-1 py-0.5 text-2xs text-status-good">
+                            {t('credit.settledTag')}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2 text-xs text-ink-secondary">
+                        {fmtDate(alloc.dueDate, 'dd MMM')}
+                        {alloc.daysOverdue > 0 ? (
+                          <span className="ml-1 text-status-critical">
+                            {t('credit.plusDays', { n: alloc.daysOverdue })}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-ink-secondary">
+                        {fmtMMK(alloc.balanceBefore)}
+                      </td>
+                      <td className="px-3 py-2 text-right font-medium tabular-nums text-ink">
+                        {fmtMMK(alloc.amount)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-ink-secondary">
+                        {fmtMMK(alloc.balanceAfter)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
 
           {preview.unapplied > 0 ? (
             <p className="border-t border-line-hair px-3 py-2 text-xs text-ink-secondary">
-              K {fmtMMK(preview.unapplied)} exceeds the outstanding balance and will be held as an
-              on-account credit for this shop.
+              {t('credit.unapplied', { amount: fmtMMK(preview.unapplied) })}
             </p>
           ) : null}
 
           {preview.clearsLock ? (
             <p className="flex items-center gap-1.5 border-t border-line-hair bg-wash-good px-3 py-2 text-xs text-status-good">
               <Unlock size={13} aria-hidden="true" />
-              This payment clears every overdue voucher — the shop unlocks immediately.
+              {t('credit.clearsLock')}
             </p>
           ) : null}
         </div>
 
         <div>
           <label htmlFor="pay-note" className="mb-1 block text-xs font-medium text-ink">
-            Note (optional)
+            {t('credit.noteOptional')}
           </label>
           <input
             id="pay-note"
             className="w-full rounded-md border border-line-hair bg-surface px-3 py-2 text-sm text-ink outline-none"
-            placeholder="e.g. KBZPay ref 8842, collected by Ko Zin"
+            placeholder={t('credit.notePlaceholder')}
             {...register('note')}
           />
         </div>

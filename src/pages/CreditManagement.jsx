@@ -16,6 +16,7 @@ import {
   simplifiedAgeingBuckets,
 } from '../domain/credit';
 import { TOWNSHIP_NAMES } from '../lib/constants';
+import { townshipLabel } from '../constants/districts';
 import { fmtDate } from '../lib/dates';
 import { fmtMMK } from '../lib/format';
 import { useAuth } from '../context/AuthContext';
@@ -58,7 +59,7 @@ import { PageHeader } from '../components/layout/AppShell';
  */
 export default function CreditManagement() {
   const { user, can } = useAuth();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { portfolio, vouchersByShop, loading, today } = useCreditData();
   // Collected is real cash received (payments), not a slice of open debt —
   // `totals.currentAmount` from the portfolio is still-unpaid balance inside
@@ -231,7 +232,7 @@ export default function CreditManagement() {
                   <option value="ALL">{t('common.allTownships')}</option>
                   {TOWNSHIP_NAMES.map((name) => (
                     <option key={name} value={name}>
-                      {name}
+                      {townshipLabel(name, locale)}
                     </option>
                   ))}
                 </select>

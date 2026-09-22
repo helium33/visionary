@@ -1,8 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 
 export function Modal({ open, onClose, title, subtitle, children, footer, width = 'max-w-lg' }) {
   const panelRef = useRef(null);
+  const { t } = useLocale();
 
   useEffect(() => {
     if (!open) return undefined;
@@ -42,7 +44,7 @@ export function Modal({ open, onClose, title, subtitle, children, footer, width 
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('ui.close')}
             className="rounded p-1 text-ink-muted hover:bg-raised hover:text-ink"
           >
             <X size={16} />

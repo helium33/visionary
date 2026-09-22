@@ -1,6 +1,8 @@
 import { Award, Users } from 'lucide-react';
 import { fmtMMK, fmtPct, initialsOf } from '../../lib/format';
+import { useLocale } from '../../context/LocaleContext';
 import { EmptyState } from '../ui/EmptyState';
+import { Rich } from '../ui/Rich';
 
 /**
  * Rep earnings, decomposed.
@@ -12,15 +14,15 @@ import { EmptyState } from '../ui/EmptyState';
  * term.
  */
 export function CommissionTable({ result }) {
+  const { t } = useLocale();
+
   if (!result.rows.length) {
     return (
-      <EmptyState
-        icon={Users}
-        title="No sales reps"
-        description="Assign the SALES role to a user to track their commission."
-      />
+      <EmptyState icon={Users} title={t('reports.noReps')} description={t('reports.noRepsHint')} />
     );
   }
+
+  const vouchers = (count) => t(count === 1 ? 'charts.voucherOne' : 'charts.voucherMany', { count });
 
   return (
     <>
@@ -33,7 +35,7 @@ export function CommissionTable({ result }) {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-ink">{row.name}</p>
                   <p className="text-2xs text-ink-secondary">
-                    {row.shopCount} shops · {row.voucherCount} vouchers
+                    {t('reports.repShopsVouchers', { shops: row.shopCount, vouchers: vouchers(row.voucherCount) })}
                   </p>
                 </div>
               </div>
@@ -42,9 +44,9 @@ export function CommissionTable({ result }) {
               </p>
             </div>
             <dl className="mt-2 grid grid-cols-3 gap-2 text-2xs">
-              <Cell label="Sold" value={`K ${fmtMMK(row.salesValue, { compact: true })}`} />
-              <Cell label="On time" value={fmtPct(row.onTimeRatePct)} />
-              <Cell label="Bonus" value={`K ${fmtMMK(row.collectionBonus)}`} />
+              <Cell label={t('reports.colSold')} value={`K ${fmtMMK(row.salesValue, { compact: true })}`} />
+              <Cell label={t('reports.onTime')} value={fmtPct(row.onTimeRatePct)} />
+              <Cell label={t('reports.colBonus')} value={`K ${fmtMMK(row.collectionBonus)}`} />
             </dl>
             <OnTimeMeter pct={row.onTimeRatePct} className="mt-2" />
           </li>
@@ -55,13 +57,13 @@ export function CommissionTable({ result }) {
         <table className="w-full min-w-[920px] text-sm">
           <thead>
             <tr className="border-b border-line-hair text-left text-xs text-ink-secondary">
-              <th className="px-4 py-2 font-medium">Rep</th>
-              <th className="px-3 py-2 text-right font-medium">Sold</th>
-              <th className="px-3 py-2 text-right font-medium">Base</th>
-              <th className="px-3 py-2 text-right font-medium">Collected</th>
-              <th className="px-3 py-2 font-medium">Inside 14 days</th>
-              <th className="px-3 py-2 text-right font-medium">Bonus</th>
-              <th className="px-4 py-2 text-right font-medium">Earns</th>
+              <th className="px-4 py-2 font-medium">{t('reports.colRep')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('reports.colSold')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('reports.colBase')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('reports.colCollected')}</th>
+              <th className="px-3 py-2 font-medium">{t('reports.colInside')}</th>
+              <th className="px-3 py-2 text-right font-medium">{t('reports.colBonus')}</th>
+              <th className="px-4 py-2 text-right font-medium">{t('reports.colEarns')}</th>
             </tr>
           </thead>
           <tbody>
@@ -73,7 +75,11 @@ export function CommissionTable({ result }) {
                     <div>
                       <p className="font-medium text-ink">{row.name}</p>
                       <p className="text-2xs text-ink-secondary">
-                        {row.shopCount} shops · {row.voucherCount} vouchers · {row.pieces} pcs
+                        {t('reports.repShopsVouchersPieces', {
+                          shops: row.shopCount,
+                          vouchers: vouchers(row.voucherCount),
+                          pieces: row.pieces,
+                        })}
                       </p>
                     </div>
                   </div>
@@ -95,8 +101,10 @@ export function CommissionTable({ result }) {
                 <td className="px-3 py-2.5">
                   <OnTimeMeter pct={row.onTimeRatePct} />
                   <p className="mt-0.5 text-2xs text-ink-muted">
-                    K {fmtMMK(row.collectedOnTime, { compact: true })} of{' '}
-                    {fmtMMK(row.collected, { compact: true })}
+                    {t('reports.onTimeOf', {
+                      onTime: fmtMMK(row.collectedOnTime, { compact: true }),
+                      collected: fmtMMK(row.collected, { compact: true }),
+                    })}
                   </p>
                 </td>
 
@@ -104,7 +112,7 @@ export function CommissionTable({ result }) {
                   <span className="tabular-nums text-ink">{fmtMMK(row.collectionBonus)}</span>
                   {row.bonusForgone > 0 ? (
                     <span className="block text-2xs tabular-nums text-status-serious">
-                      −{fmtMMK(row.bonusForgone)} missed
+                      {t('reports.missed', { amount: fmtMMK(row.bonusForgone) })}
                     </span>
                   ) : null}
                 </td>
@@ -117,7 +125,7 @@ export function CommissionTable({ result }) {
           </tbody>
           <tfoot>
             <tr className="border-t border-line-base text-sm">
-              <td className="px-4 py-2 font-medium text-ink">Team</td>
+              <td className="px-4 py-2 font-medium text-ink">{t('reports.team')}</td>
               <td className="px-3 py-2 text-right tabular-nums text-ink">
                 {fmtMMK(result.totals.salesValue)}
               </td>
@@ -128,10 +136,11 @@ export function CommissionTable({ result }) {
                 {fmtMMK(result.totals.collected)}
               </td>
               <td className="px-3 py-2 text-2xs text-ink-secondary">
-                {result.totals.collected
-                  ? fmtPct((result.totals.collectedOnTime / result.totals.collected) * 100)
-                  : '—'}{' '}
-                collected on time
+                {t('reports.collectedOnTime', {
+                  pct: result.totals.collected
+                    ? fmtPct((result.totals.collectedOnTime / result.totals.collected) * 100)
+                    : '—',
+                })}
               </td>
               <td className="px-3 py-2 text-right tabular-nums text-ink">
                 {fmtMMK(result.totals.collectionBonus)}
@@ -149,10 +158,12 @@ export function CommissionTable({ result }) {
         {/* One span, not loose text plus <strong>: inside a flex row each of
             those becomes its own flex item and the sentence breaks apart. */}
         <span>
-          Base is {fmtPct(result.rates.basePct, 1)} of what the rep sold. The bonus is{' '}
-          {fmtPct(result.rates.onTimeBonusPct, 1)} of cash collected{' '}
-          <strong className="font-medium text-ink">inside the 14-day term</strong> — paid on
-          collection rather than on sales, so nobody earns for selling to a shop that never pays.
+          <Rich
+            text={t('reports.commissionNote', {
+              base: fmtPct(result.rates.basePct, 1),
+              bonus: fmtPct(result.rates.onTimeBonusPct, 1),
+            })}
+          />
         </span>
       </p>
     </>
@@ -165,6 +176,7 @@ export function CommissionTable({ result }) {
  * back inside the term.
  */
 function OnTimeMeter({ pct, className = '' }) {
+  const { t } = useLocale();
   const tone = pct >= 80 ? 'good' : pct >= 50 ? 'warning' : 'critical';
   const color = {
     good: 'var(--status-good)',
@@ -181,7 +193,7 @@ function OnTimeMeter({ pct, className = '' }) {
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(pct)}
-        aria-label="Share collected inside the 14-day term"
+        aria-label={t('reports.onTimeAria')}
       >
         <span
           className="block h-1.5 rounded-full"

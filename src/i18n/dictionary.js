@@ -6,336 +6,63 @@
  * need (no plural rules, no ICU message formatting, no per-locale number
  * formats beyond what `lib/format.js` already owns), and a ~2KB hand-rolled
  * lookup keeps the bundle smaller than shipping i18next + react-i18next +
- * a language detector for what is, today, a flat key→string table. If the
- * app later needs plural rules or namespaced lazy-loading, migrating this
- * dictionary's shape into i18next's resource format is a mechanical move —
- * nothing here is designed to resist that.
+ * a language detector for what is, today, a flat key→string table.
  *
- * COVERAGE: the sidebar nav, the app header, the Dashboard, Credit
- * Management, the Shops & Townships report, and the Login screen. Every
- * other page keeps its English copy for now; add a namespace here and call
- * `t()` from that page to extend coverage.
- *
- * The Myanmar column is placeholder text meant to be replaced by a native
- * speaker — each string is a real, sensible translation, not filler, but the
- * project owner asked to adjust the wording themselves.
+ * One file per namespace under ./ns, each holding its `en` and `mm` strings
+ * side by side so a reviewer can check a module's Burmese against its English
+ * in one place. Every screen reads its copy through `t()`; dictionary.test.js
+ * fails if a key exists in one language but not the other, or if the two
+ * disagree on a `{placeholder}`.
  */
+import { access } from './ns/access';
+import { admin } from './ns/admin';
+import { carstock } from './ns/carstock';
+import { charts } from './ns/charts';
+import { common } from './ns/common';
+import { credit } from './ns/credit';
+import { dashboard } from './ns/dashboard';
+import { errors } from './ns/errors';
+import { header } from './ns/header';
+import { inventory } from './ns/inventory';
+import { labels } from './ns/labels';
+import { loading } from './ns/loading';
+import { login } from './ns/login';
+import { nav } from './ns/nav';
+import { purchasing } from './ns/purchasing';
+import { reports } from './ns/reports';
+import { shops } from './ns/shops';
+import { ui } from './ns/ui';
+import { vouchers } from './ns/vouchers';
+
+const NAMESPACES = {
+  access,
+  admin,
+  carstock,
+  charts,
+  common,
+  credit,
+  dashboard,
+  errors,
+  header,
+  inventory,
+  labels,
+  loading,
+  login,
+  nav,
+  purchasing,
+  reports,
+  shops,
+  ui,
+  vouchers,
+};
+
+function forLocale(locale) {
+  return Object.fromEntries(Object.entries(NAMESPACES).map(([name, ns]) => [name, ns[locale]]));
+}
 
 export const dictionary = {
-  en: {
-    nav: {
-      dashboard: 'Dashboard',
-      credit: 'Credit control',
-      vouchers: 'Vouchers',
-      shops: 'Shops & townships',
-      inventory: 'Inventory',
-      purchasing: 'Purchasing & cost',
-      logistics: 'Car stock',
-      reports: 'Reports',
-      admin: 'Users & audit',
-    },
-    header: {
-      demoData: 'Demo data',
-      synced: 'Synced',
-      syncing: 'Syncing…',
-      offline: 'Offline — saving locally',
-      language: 'Language',
-      theme: 'Theme',
-      lightMode: 'Light mode',
-      darkMode: 'Dark mode',
-      logout: 'Logout',
-    },
-    common: {
-      township: 'Township',
-      townships: 'Townships',
-      district: 'District',
-      districts: 'Districts',
-      allDistricts: 'All districts',
-      allTownships: 'All townships',
-      revenue: 'Revenue',
-      pieces: 'pcs',
-      vouchers: 'vouchers',
-      orders: 'orders',
-      shops: 'shops',
-      loading: 'Loading…',
-      noData: 'No data for this period',
-      last30: '30 days',
-      last90: '90 days',
-      last365: '12 months',
-    },
-    dashboard: {
-      title: 'Dashboard',
-      subtitle: 'Last 90 days · Yangon wholesale',
-      outstandingReceivables: 'Outstanding receivables',
-      overdue: 'overdue',
-      locked: 'locked',
-      dueWithin2Days: 'due within 2 days',
-      revenue90: 'Revenue (90 days)',
-      cashCollected: 'Cash collected',
-      consignmentOut: 'Consignment out',
-      notRevenueYet: 'sample stock — not revenue yet',
-      activeShops: 'Active shops',
-      carryingBalance: 'carrying a balance',
-      salesVsCollected: 'Sales issued vs cash collected',
-      salesVsCollectedSub: 'Weekly, last 90 days — the gap is credit extended',
-      topTownships: 'Top townships',
-      topShops: 'Top shops',
-      salesValue90: 'Sales value, last 90 days',
-      needsAttention: 'Needs attention today',
-      needsAttentionSub: 'Shops past — or about to pass — their 14-day term',
-      allInsideTerm: 'Every shop is inside its 14-day term.',
-      quickActions: 'Quick actions',
-      newVoucher: 'New voucher',
-      collectPayment: 'Collect payment',
-      gridStockEntry: 'Grid stock entry',
-      loadCarStock: 'Load car stock',
-    },
-    credit: {
-      title: 'Credit control',
-      subtitle: '14-day terms · evaluated {date} · {count} shops carrying balances',
-      lockedBanner: '{count} shop(s) locked — new vouchers blocked',
-      totalOutstanding: 'Total outstanding',
-      acrossShops: 'across {count} shops',
-      overduePastTerm: 'Overdue (past 14 days)',
-      ofReceivables: '% of receivables',
-      lockedShops: 'Locked shops',
-      newVouchersBlocked: 'new vouchers blocked',
-      dueWithin2: 'Due within 2 days',
-      shopsAtDay: 'shops at day 12–14',
-      ageingTitle: 'Receivables ageing',
-      ageingSub: 'Every open voucher placed against its 14-day term',
-      collectionSplit: 'Collected vs outstanding',
-      collectionSplitSub: 'Cash collected in the last 90 days against what shops owe right now',
-      collected: 'Collected',
-      outstanding: 'Outstanding',
-      debtAgeing: 'Debt ageing',
-      debtAgeingSub: 'Open balance by how close it is to the 14-day limit',
-      bucket0_7: '0–7 days',
-      bucket8_14: '8–14 days',
-      bucketOverdue: 'Overdue',
-      worklistTitle: 'Collection worklist',
-      worklistSub: 'Worst first — locked shops, then by days past term',
-      needsAction: 'Needs action',
-      dueSoon: 'Due soon',
-      allShops: 'All shops',
-      searchShop: 'Search shop',
-      remind: 'Remind',
-      collect: 'Collect',
-      showing: 'Showing {shown} of {total} shops · K {amount} outstanding in this view',
-    },
-    reports: {
-      title: 'Reports',
-      tabProfit: 'Profit & commissions',
-      tabShops: 'Shops & townships',
-      districtTitle: 'Revenue by district',
-      districtSub: 'Total sales value across the four Yangon districts',
-      districtVolumeTitle: 'Volume by district',
-      districtVolumeSub: 'Pieces sold — shown separately from revenue, different scale',
-      townshipTitle: 'Township drill-down',
-      townshipSub: 'Sales within one district, by township',
-      selectDistrict: 'Select a district',
-      topShopsTitle: 'Top 10 shops',
-      topShopsSub: 'By revenue — order count labelled on each bar',
-    },
-    login: {
-      title: 'Sign in',
-      subtitle:
-        'The session stays on this device, so the app keeps working in the field with no signal.',
-      email: 'Email',
-      password: 'Password',
-      signIn: 'Sign in',
-      signingIn: 'Signing in…',
-      orContinueWith: 'or continue with',
-      signInWithGoogle: 'Sign in with Google',
-      errorInvalidEmail: 'That doesn’t look like a valid email address.',
-      errorInvalidCredential: 'Email or password is incorrect.',
-      errorUserDisabled: 'This account has been disabled. Contact your administrator.',
-      errorTooManyRequests: 'Too many attempts. Please wait a moment and try again.',
-      errorOperationNotAllowed:
-        'This sign-in method isn’t turned on for this project yet. Ask your admin to enable it in the Firebase console.',
-      errorPopupBlocked: 'Your browser blocked the sign-in window. Trying another way…',
-      errorUnauthorizedDomain: 'This address isn’t authorised for sign-in yet. Ask your admin to add it in the Firebase console.',
-      errorNetworkFailed: 'Could not reach the server. Check your connection and try again.',
-      errorDefault: 'Something went wrong signing in. Please try again.',
-      welcome: 'Signed in. Welcome, {name}.',
-    },
-    loading: {
-      app: 'Loading Plan B Vision…',
-      page: 'Loading…',
-    },
-    access: {
-      title: 'Waiting for access',
-      body: 'You’re signed in as {email}, but this account doesn’t have a role yet. Ask an admin to give you one, then tap “Check again”.',
-      checkAgain: 'Check again',
-      checking: 'Checking…',
-      stillNone: 'This account still has no role. Ask an admin to assign one.',
-    },
-    errors: {
-      permission:
-        'You don’t have access to some of this data. If an admin just changed your role, sign out and back in.',
-      index:
-        'Some data can’t load yet: the database is missing an index it needs. Ask your admin to deploy the Firestore indexes.',
-      unavailable: 'Can’t reach the server right now. Showing what’s saved on this device.',
-      loadFailed: 'Some data couldn’t be loaded. Please try again.',
-    },
-  },
-
-  mm: {
-    nav: {
-      dashboard: 'ပင်မစာမျက်နှာ',
-      credit: 'အကြွေးစီမံခန့်ခွဲမှု',
-      vouchers: 'ဘောက်ချာများ',
-      shops: 'ဆိုင်များနှင့် မြို့နယ်များ',
-      inventory: 'ကုန်ပစ္စည်းစာရင်း',
-      purchasing: 'ဝယ်ယူမှုနှင့် ကုန်ကျစရိတ်',
-      logistics: 'ကားပေါ်ကုန်ပစ္စည်း',
-      reports: 'အစီရင်ခံစာများ',
-      admin: 'သုံးစွဲသူနှင့် စာရင်းစစ်',
-    },
-    header: {
-      demoData: 'သရုပ်ပြ အချက်အလက်',
-      synced: 'ထပ်တူညီပြီ',
-      syncing: 'ထပ်တူညှိနေသည်…',
-      offline: 'အော့ဖ်လိုင်း — ဒေသခံသိမ်းနေသည်',
-      language: 'ဘာသာစကား',
-      theme: 'အသွင်အပြင်',
-      lightMode: 'အလင်းအသွင်',
-      darkMode: 'အမှောင်အသွင်',
-      logout: 'ထွက်ရန်',
-    },
-    common: {
-      township: 'မြို့နယ်',
-      townships: 'မြို့နယ်များ',
-      district: 'ခရိုင်',
-      districts: 'ခရိုင်များ',
-      allDistricts: 'ခရိုင်အားလုံး',
-      allTownships: 'မြို့နယ်အားလုံး',
-      revenue: 'ဝင်ငွေ',
-      pieces: 'ပီးစ်',
-      vouchers: 'ဘောက်ချာများ',
-      orders: 'အော်ဒါများ',
-      shops: 'ဆိုင်များ',
-      loading: 'ဖွင့်နေသည်…',
-      noData: 'ဤကာလအတွက် အချက်အလက်မရှိပါ',
-      last30: '၃၀ ရက်',
-      last90: '၉၀ ရက်',
-      last365: '၁၂ လ',
-    },
-    dashboard: {
-      title: 'ပင်မစာမျက်နှာ',
-      subtitle: 'လွန်ခဲ့သော ၉၀ ရက် · ရန်ကုန် လက်ကားရောင်းချမှု',
-      outstandingReceivables: 'ကျန်ရှိနေသော အကြွေးများ',
-      overdue: 'သက်တမ်းကျော်',
-      locked: 'ပိတ်ထားသည်',
-      dueWithin2Days: 'ရက် ၂ ရက်အတွင်း ပေးရမည်',
-      revenue90: 'ဝင်ငွေ (၉၀ ရက်)',
-      cashCollected: 'ရငွေ',
-      consignmentOut: 'အပ်ငွေပစ္စည်း',
-      notRevenueYet: 'နမူနာပစ္စည်း — ဝင်ငွေအဖြစ်မသတ်မှတ်ရသေး',
-      activeShops: 'လက်ရှိဆိုင်များ',
-      carryingBalance: 'ကျန်ငွေရှိသည်',
-      salesVsCollected: 'ရောင်းချမှု နှင့် ရငွေ',
-      salesVsCollectedSub: 'အပတ်စဉ်၊ လွန်ခဲ့သော ၉၀ ရက် — ကွာဟချက်မှာ အကြွေးပေးထားသည့်ပမာဏ',
-      topTownships: 'ထိပ်တန်း မြို့နယ်များ',
-      topShops: 'ထိပ်တန်း ဆိုင်များ',
-      salesValue90: 'ရောင်းချတန်ဖိုး၊ လွန်ခဲ့သော ၉၀ ရက်',
-      needsAttention: 'ယနေ့ အလေးထားရမည့်အချက်များ',
-      needsAttentionSub: 'ရက် ၁၄ ရက် သက်တမ်းကျော်နေသော (သို့) ကျော်တော့မည့် ဆိုင်များ',
-      allInsideTerm: 'ဆိုင်အားလုံး ရက် ၁၄ ရက် သက်တမ်းအတွင်း ရှိနေပါသည်။',
-      quickActions: 'အမြန်လုပ်ဆောင်ချက်များ',
-      newVoucher: 'ဘောက်ချာအသစ်',
-      collectPayment: 'ငွေကောက်ခံရန်',
-      gridStockEntry: 'ကုန်ပစ္စည်းအမြန်ထည့်ရန်',
-      loadCarStock: 'ကားပေါ်ကုန်တင်ရန်',
-    },
-    credit: {
-      title: 'အကြွေးစီမံခန့်ခွဲမှု',
-      subtitle: 'ရက် ၁၄ ရက် သက်တမ်း · {date} အထိတွက်ချက်ထားသည် · ဆိုင် {count} ခု ကျန်ငွေရှိသည်',
-      lockedBanner: 'ဆိုင် {count} ခု ပိတ်ထားသည် — ဘောက်ချာအသစ် ရေးမရ',
-      totalOutstanding: 'စုစုပေါင်း ကျန်ငွေ',
-      acrossShops: 'ဆိုင် {count} ခုတွင်',
-      overduePastTerm: 'သက်တမ်းကျော် (ရက် ၁၄ ရက်ကျော်)',
-      ofReceivables: '% ကျန်ငွေစုစုပေါင်း၏',
-      lockedShops: 'ပိတ်ထားသောဆိုင်များ',
-      newVouchersBlocked: 'ဘောက်ချာအသစ် ပိတ်ထားသည်',
-      dueWithin2: 'ရက် ၂ ရက်အတွင်း ပေးရမည်',
-      shopsAtDay: 'ရက် ၁၂–၁၄ ရောက်နေသော ဆိုင်များ',
-      ageingTitle: 'ကျန်ငွေ သက်တမ်းခွဲခြမ်းစိတ်ဖြာမှု',
-      ageingSub: 'ဖွင့်ထားသောဘောက်ချာတိုင်းကို ရက် ၁၄ ရက် သက်တမ်းနှင့် နှိုင်းယှဉ်ထားသည်',
-      collectionSplit: 'ရငွေ နှင့် ကျန်ငွေ',
-      collectionSplitSub: 'လွန်ခဲ့သော ၉၀ ရက်အတွင်း ရငွေအား ဆိုင်များ ယခုကျန်ရှိနေသေးသောပမာဏနှင့် နှိုင်းယှဉ်ခြင်း',
-      collected: 'ရရှိပြီး',
-      outstanding: 'ကျန်ငွေ',
-      debtAgeing: 'အကြွေးသက်တမ်း',
-      debtAgeingSub: 'ကျန်ငွေအား ရက် ၁၄ ရက် ကန့်သတ်ချက်နှင့် နီးသည့်အလိုက် ခွဲခြားထားသည်',
-      bucket0_7: '၀–၇ ရက်',
-      bucket8_14: '၈–၁၄ ရက်',
-      bucketOverdue: 'သက်တမ်းကျော်',
-      worklistTitle: 'ငွေကောက်ခံရန် စာရင်း',
-      worklistSub: 'အဆိုးဆုံးအရင် — ပိတ်ထားသောဆိုင်များ၊ ထို့နောက် သက်တမ်းကျော်ရက်အလိုက်',
-      needsAction: 'ဆောင်ရွက်ရန်လိုသည်',
-      dueSoon: 'မကြာမီပေးရမည်',
-      allShops: 'ဆိုင်အားလုံး',
-      searchShop: 'ဆိုင်ရှာရန်',
-      remind: 'သတိပေးရန်',
-      collect: 'ကောက်ခံရန်',
-      showing: 'ဆိုင် {total} ခုအနက် {shown} ခု ပြသနေသည် · ဤမြင်ကွင်းတွင် K {amount} ကျန်ရှိသည်',
-    },
-    reports: {
-      title: 'အစီရင်ခံစာများ',
-      tabProfit: 'အမြတ်နှင့် ကော်မရှင်',
-      tabShops: 'ဆိုင်နှင့် မြို့နယ်များ',
-      districtTitle: 'ခရိုင်အလိုက် ဝင်ငွေ',
-      districtSub: 'ရန်ကုန်ခရိုင် လေးခုတွင် စုစုပေါင်းရောင်းချတန်ဖိုး',
-      districtVolumeTitle: 'ခရိုင်အလိုက် ရောင်းအားပမာဏ',
-      districtVolumeSub: 'ရောင်းချသောအရေအတွက် — ဝင်ငွေနှင့် အတိုင်းအတာမတူသဖြင့် သီးခြားပြသသည်',
-      townshipTitle: 'မြို့နယ်အလိုက် အသေးစိတ်',
-      townshipSub: 'ခရိုင်တစ်ခုအတွင်း မြို့နယ်အလိုက် ရောင်းချမှု',
-      selectDistrict: 'ခရိုင်ရွေးချယ်ရန်',
-      topShopsTitle: 'ထိပ်တန်းဆိုင် ၁၀ ခု',
-      topShopsSub: 'ဝင်ငွေအလိုက် — အော်ဒါအရေအတွက်ကို ဘားတိုင်းတွင် ဖော်ပြထားသည်',
-    },
-    login: {
-      title: 'အကောင့်ဝင်ရောက်ရန်',
-      subtitle:
-        'စက်ရှင်ကို ဤစက်ပေါ်တွင် သိမ်းဆည်းထားမည်ဖြစ်၍ အင်တာနက်မရှိသည့်နေရာများတွင်လည်း အက်ပ်ဆက်လက်အလုပ်လုပ်နိုင်ပါသည်။',
-      email: 'အီးမေးလ်',
-      password: 'စကားဝှက်',
-      signIn: 'ဝင်ရောက်ရန်',
-      signingIn: 'ဝင်ရောက်နေသည်…',
-      orContinueWith: 'သို့မဟုတ်',
-      signInWithGoogle: 'Google ဖြင့် ဝင်ရောက်ရန်',
-      errorInvalidEmail: 'ဤသည် မှန်ကန်သော အီးမေးလ်ပုံစံ မဟုတ်ပါ။',
-      errorInvalidCredential: 'အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်။',
-      errorUserDisabled: 'ဤအကောင့်ကို ပိတ်ထားပါသည်။ သင့်စီစဉ်ခန့်ခွဲသူထံ ဆက်သွယ်ပါ။',
-      errorTooManyRequests: 'ကြိုးစားမှုများလွန်းနေပါသည်။ ခဏစောင့်ပြီး ထပ်စမ်းကြည့်ပါ။',
-      errorOperationNotAllowed: 'ဤဝင်ရောက်နည်းကို ဤပရောဂျက်တွင် ဖွင့်ထားခြင်းမရှိသေးပါ။ Firebase console တွင် ဖွင့်ရန် သင့်အက်ဒမင်ကို တောင်းဆိုပါ။',
-      errorPopupBlocked: 'သင့်ဘရောက်ဆာက ဝင်ရောက်ရန်ဝင်းဒိုးကို ပိတ်ဆို့ထားသည်။ အခြားနည်းဖြင့် ထပ်ကြိုးစားနေသည်…',
-      errorUnauthorizedDomain: 'ဤလိပ်စာကို ဝင်ရောက်ရန် ခွင့်ပြုမထားသေးပါ။ Firebase console တွင် ထည့်ရန် သင့်အက်ဒမင်ကို တောင်းဆိုပါ။',
-      errorNetworkFailed: 'ဆာဗာသို့ ဆက်သွယ်၍မရပါ။ အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်စမ်းကြည့်ပါ။',
-      errorDefault: 'ဝင်ရောက်ရာတွင် တစ်စုံတစ်ခု မှားယွင်းသွားပါသည်။ ထပ်စမ်းကြည့်ပါ။',
-      welcome: 'ဝင်ရောက်ပြီးပါပြီ။ ကြိုဆိုပါသည်၊ {name}။',
-    },
-    loading: {
-      app: 'Plan B Vision ကို ဖွင့်နေသည်…',
-      page: 'ဖွင့်နေသည်…',
-    },
-    access: {
-      title: 'အသုံးပြုခွင့် စောင့်ဆိုင်းနေသည်',
-      body: '{email} ဖြင့် ဝင်ရောက်ထားပါသည်၊ သို့သော် ဤအကောင့်တွင် ရာထူး (role) မသတ်မှတ်ရသေးပါ။ အက်ဒမင်ကို ရာထူးသတ်မှတ်ပေးရန် တောင်းဆိုပြီး “ထပ်စစ်ရန်” ကို နှိပ်ပါ။',
-      checkAgain: 'ထပ်စစ်ရန်',
-      checking: 'စစ်ဆေးနေသည်…',
-      stillNone: 'ဤအကောင့်တွင် ရာထူး မရှိသေးပါ။ အက်ဒမင်ကို သတ်မှတ်ပေးရန် တောင်းဆိုပါ။',
-    },
-    errors: {
-      permission:
-        'ဤဒေတာအချို့ကို ကြည့်ခွင့်မရှိပါ။ အက်ဒမင်က သင့်ရာထူးကို ယခုလေးတင် ပြောင်းထားပါက ထွက်ပြီး ပြန်ဝင်ပါ။',
-      index:
-        'ဒေတာအချို့ကို မဖွင့်နိုင်သေးပါ — database တွင် လိုအပ်သော index မရှိသေးပါ။ Firestore index များကို deploy လုပ်ရန် အက်ဒမင်ကို တောင်းဆိုပါ။',
-      unavailable: 'ယခု ဆာဗာသို့ ဆက်သွယ်၍ မရပါ။ ဤစက်တွင် သိမ်းထားသည်များကို ပြသထားပါသည်။',
-      loadFailed: 'ဒေတာအချို့ကို ဖွင့်၍ မရပါ။ ထပ်စမ်းကြည့်ပါ။',
-    },
-  },
+  en: forLocale('en'),
+  mm: forLocale('mm'),
 };
 
 export const LOCALES = ['en', 'mm'];

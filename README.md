@@ -22,7 +22,7 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Reports** | Complete — net profit bridge, model profitability, rep commissions, **+ Shops & townships analytics** |
 | **Car stock** | Complete — load a bag, reconcile stock, cash and debt on return |
 | **Users & audit** | Complete — role assignment, an append-only audit log, master-password rotation |
-| **Bilingual UI (EN/MM)** | Nav, header, Dashboard, Credit Management and Reports — a language toggle, placeholder Myanmar copy |
+| **Bilingual UI (EN/MM)** | Complete — every screen, dialog, toast, printed voucher/statement and Viber/Telegram message; Burmese township names and month names; bundled Myanmar font |
 | **Yangon district mapping** | Complete — 4 districts ↔ townships, auto-derived, feeds the district/township charts |
 | **Brand identity & auth** | Complete — Plan B Vision Eyewears mark, brand-primary theme, Firebase Email/Password + Google sign-in, `<ProtectedRoute>` |
 | **Shops & townships** | Complete — directory grouped by township, shop profile with full purchase history, price-tier/credit-limit management |
@@ -120,9 +120,12 @@ visionary/
     │   ├── townshipAnalytics.test.js
     │   └── shopPurchaseHistory.test.js
     ├── i18n/                     Hand-rolled EN/MM dictionary — see "Bilingual support" below
-    │   ├── dictionary.js           Nested {en, mm} strings, dot-path keys
-    │   ├── translate.js            Lookup + {placeholder} interpolation, never throws
-    │   └── translate.test.js
+    │   ├── ns/                     One file per namespace, English and Burmese side by side
+    │   ├── dictionary.js           Assembles the namespaces into {en, mm}
+    │   ├── dictionary.test.js      Both languages have the same keys and {placeholders}
+    │   ├── translate.js            Lookup + {placeholder} interpolation, never throws; tNow()
+    │   ├── translate.test.js
+    │   └── dateLocale.js           Burmese month and weekday names for date-fns
     ├── constants/
     │   ├── districts.js            Yangon district ↔ township mapping — see below
     │   └── districts.test.js
@@ -354,12 +357,34 @@ the accountant approves is exactly what gets committed — offline included.
 
 Hand-rolled, not react-i18next. `src/i18n/dictionary.js` is a plain nested `{en, mm}` object
 keyed by dot-path (`credit.totalOutstanding`), looked up and `{placeholder}`-interpolated by
-`src/i18n/translate.js`, with a locale → English → raw-key fallback that never throws. The whole
-thing is a few KB; this app has no plural rules or per-locale number formats to justify shipping
-`i18next` + `react-i18next` + a language detector. Coverage is deliberately scoped to what was
-asked for — nav, header, Dashboard, Credit Management, Reports — not the rest of the app; every
-other page keeps its English copy until a namespace is added for it. The Myanmar column is real,
-sensible placeholder text the project owner asked to refine themselves, not filler.
+`src/i18n/translate.js`, with a locale → English → raw-key fallback that never throws. This app
+has no plural rules or per-locale number formats to justify shipping `i18next` + `react-i18next` +
+a language detector; both languages together are about 30 KB gzipped.
+
+**Coverage is the whole app.** Switching to MM changes every screen, dialog, empty state, toast,
+validation message and chart label — not just the sidebar — plus what leaves the app: the printed
+voucher and statement, and the Viber/Telegram voucher, statement and reminder texts (an English
+message keeps its one-line Burmese summary for the shop; a Burmese one doesn't need it). Shop
+names, model numbers, colour names and people's names are data and stay as entered. Yangon
+township names switch to Burmese (`townshipLabel()` in `constants/districts.js`; shops still store
+the English name, which every filter and report joins on), and dates use Burmese month names.
+Digits stay Western in both languages, matching amounts and how the business writes them.
+
+**Adding or changing a string.** Strings live in `src/i18n/ns/<namespace>.js`, English and Burmese
+side by side. Components call `t('ns.key', vars)` from `useLocale()`; code outside React (services,
+`lib/format.js`, `lib/dates.js`) calls `tNow()`, which follows the same locale. `dictionary.test.js`
+fails if a key exists in one language but not the other, if the two disagree on a `{placeholder}`,
+or if a string is empty. There are no plural rules: where English needs "1 day" / "3 days" the
+code picks a `…One` / `…Many` key. A bold phrase inside a sentence is marked `**like this**` and
+rendered by `<Rich>` (`components/ui/Rich.jsx`), so each language puts it where its word order
+does. Domain modules stay English and pure: they return codes (a credit-gate `code`, a price
+`reasonCode`, an audit `action`) and the UI translates them; the audit log's sentences read from
+the dictionary with English as the default, so its tests still read as English.
+
+**Font.** Burmese text uses the bundled Noto Sans Myanmar (`@fontsource/noto-sans-myanmar`,
+Myanmar subset only, about 48 KB per weight, fetched the first time Burmese text needs it).
+Without it the app depended on the phone's own font, and a phone still set to Zawgyi shows
+Unicode Burmese garbled. Latin text keeps the system font in both languages.
 
 `LocaleProvider` (`src/context/LocaleContext.jsx`) holds the current locale, persists it to
 `localStorage`, and sets `document.documentElement.lang` plus a `body.mm-locale` class so

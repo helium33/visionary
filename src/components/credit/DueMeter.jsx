@@ -1,3 +1,4 @@
+import { useLocale } from '../../context/LocaleContext';
 import { CREDIT_TERM_DAYS } from '../../domain/credit';
 
 const FILL = {
@@ -15,6 +16,7 @@ const FILL = {
  * channel — the meter is the glanceable supplement, never the only signal.
  */
 export function DueMeter({ aging, termDays = CREDIT_TERM_DAYS, showLabel = true }) {
+  const { t } = useLocale();
   if (!aging) {
     return <span className="text-xs text-ink-muted">—</span>;
   }
@@ -30,10 +32,10 @@ export function DueMeter({ aging, termDays = CREDIT_TERM_DAYS, showLabel = true 
       : 'good';
 
   const label = aging.isOverdue
-    ? `${aging.daysOverdue}d over`
+    ? t('credit.meterOver', { n: aging.daysOverdue })
     : aging.daysUntilDue === 0
-      ? 'Due today'
-      : `${aging.daysUntilDue}d left`;
+      ? t('credit.meterDueToday')
+      : t('credit.meterLeft', { n: aging.daysUntilDue });
 
   return (
     <div className="flex items-center gap-2">
@@ -44,7 +46,7 @@ export function DueMeter({ aging, termDays = CREDIT_TERM_DAYS, showLabel = true 
         aria-valuemin={0}
         aria-valuemax={termDays}
         aria-valuenow={elapsed}
-        aria-label={`Day ${elapsed} of ${termDays}`}
+        aria-label={t('credit.meterAria', { day: elapsed, term: termDays })}
       >
         <div
           className="h-1.5 rounded-full"

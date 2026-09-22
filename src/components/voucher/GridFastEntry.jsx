@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, CornerDownLeft, Minus, Package, Plus } from 'lucide-react';
+import { useLocale } from '../../context/LocaleContext';
 import { QTY_TIERS, qtyTierFor, resolveLinePrice } from '../../domain/pricing';
-import { PRICE_TIERS } from '../../lib/constants';
 import { fmtMMK } from '../../lib/format';
+import { productAttributes } from '../../lib/productAttributes';
 import { Button } from '../ui/Button';
 
 /**
@@ -35,6 +36,7 @@ export function GridFastEntry({
   purpose = 'SELL',
   addLabel,
 }) {
+  const { t } = useLocale();
   const isTransfer = purpose === 'TRANSFER';
   const [quantities, setQuantities] = useState({});
   const inputRefs = useRef([]);
@@ -121,10 +123,8 @@ export function GridFastEntry({
     return (
       <div className="flex flex-col items-center gap-1.5 px-4 py-10 text-center">
         <Package size={20} className="text-ink-muted" aria-hidden="true" />
-        <p className="text-sm text-ink">Pick a model to start entering quantities</p>
-        <p className="text-xs text-ink-secondary">
-          Every colour of that model appears here as one row you can type straight down.
-        </p>
+        <p className="text-sm text-ink">{t('vouchers.pickModel')}</p>
+        <p className="text-xs text-ink-secondary">{t('vouchers.pickModelHint')}</p>
       </div>
     );
   }
@@ -134,15 +134,11 @@ export function GridFastEntry({
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line-hair px-4 py-2.5">
         <div>
           <h3 className="text-sm font-semibold tabular-nums text-ink">{product.modelNo}</h3>
-          <p className="text-2xs text-ink-secondary">
-            {[product.brand, product.material, product.shape?.replace('_', ' '), product.gender]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
+          <p className="text-2xs text-ink-secondary">{productAttributes(product, t, { brand: true })}</p>
         </div>
         {isTransfer ? (
           <p className="text-2xs text-ink-secondary">
-            {product.totalStock} in stock across all colours
+            {t('vouchers.inStockAll', { count: product.totalStock })}
           </p>
         ) : (
           <div className="text-right">
@@ -150,7 +146,7 @@ export function GridFastEntry({
               K {fmtMMK(pricing.unitPrice)}
             </p>
             <p className="text-2xs text-ink-secondary">
-              {pricing.tierLabel}
+              {t(`labels.priceTier.${pricing.tier}`)}
               {pricing.discountPct > 0 ? ` · −${pricing.discountPct}%` : ''}
             </p>
           </div>
@@ -160,11 +156,11 @@ export function GridFastEntry({
       <table className="w-full table-fixed text-sm">
         <thead>
           <tr className="text-left text-2xs text-ink-secondary">
-            <th className="px-2 py-2 font-medium sm:px-4">Colour</th>
-            <th className="w-14 px-1 py-2 text-right font-medium sm:w-20 sm:px-3">Stock</th>
-            <th className="w-[7.5rem] px-1 py-2 text-center font-medium sm:w-36 sm:px-3">Qty</th>
+            <th className="px-2 py-2 font-medium sm:px-4">{t('vouchers.colColour')}</th>
+            <th className="w-14 px-1 py-2 text-right font-medium sm:w-20 sm:px-3">{t('vouchers.colStock')}</th>
+            <th className="w-[7.5rem] px-1 py-2 text-center font-medium sm:w-36 sm:px-3">{t('vouchers.colQty')}</th>
             <th className="w-20 px-2 py-2 text-right font-medium sm:w-28 sm:px-4">
-              {isTransfer ? 'Left' : 'Total'}
+              {t(isTransfer ? 'vouchers.colLeft' : 'vouchers.colTotal')}
             </th>
           </tr>
         </thead>
@@ -216,8 +212,8 @@ export function GridFastEntry({
                         className="text-status-warning"
                         aria-hidden="true"
                       />
-                      <span className="sr-only">low stock</span>
-                      <span className="hidden text-2xs text-ink sm:inline">low</span>
+                      <span className="sr-only">{t('vouchers.lowStock')}</span>
+                      <span className="hidden text-2xs text-ink sm:inline">{t('vouchers.low')}</span>
                     </span>
                   ) : null}
                 </td>
@@ -228,7 +224,7 @@ export function GridFastEntry({
                       type="button"
                       onClick={() => bump(variant.colorCode, -1)}
                       disabled={qty === 0}
-                      aria-label={`Decrease ${variant.colorCode}`}
+                      aria-label={t('vouchers.decrease', { code: variant.colorCode })}
                       className="h-7 w-6 shrink-0 rounded border border-line-hair text-ink-secondary
                         hover:bg-raised hover:text-ink disabled:opacity-40 sm:w-7"
                     >
@@ -244,7 +240,7 @@ export function GridFastEntry({
                       onKeyDown={(e) => onKeyDown(e, index)}
                       onFocus={(e) => e.target.select()}
                       placeholder="0"
-                      aria-label={`Quantity for ${product.modelNo} ${variant.colorCode} ${variant.colorName}`}
+                      aria-label={t('vouchers.qtyFor', { item: `${product.modelNo} ${variant.colorCode} ${variant.colorName}` })}
                       aria-invalid={over}
                       className={`h-8 w-11 min-w-0 rounded border bg-surface text-center text-sm
                         font-medium tabular-nums outline-none sm:w-14 ${
@@ -256,7 +252,7 @@ export function GridFastEntry({
                     <button
                       type="button"
                       onClick={() => bump(variant.colorCode, 1)}
-                      aria-label={`Increase ${variant.colorCode}`}
+                      aria-label={t('vouchers.increase', { code: variant.colorCode })}
                       className="h-7 w-6 shrink-0 rounded border border-line-hair text-ink-secondary hover:bg-raised hover:text-ink sm:w-7"
                     >
                       <Plus size={12} className="mx-auto" aria-hidden="true" />
@@ -275,7 +271,7 @@ export function GridFastEntry({
                   {over ? (
                     <p className="flex items-center justify-end gap-1 whitespace-nowrap text-2xs text-status-critical">
                       <AlertTriangle size={10} aria-hidden="true" />
-                      {qty - available} over
+                      {t('vouchers.overBy', { n: qty - available })}
                     </p>
                   ) : null}
                 </td>
@@ -288,29 +284,36 @@ export function GridFastEntry({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-hair px-4 py-3">
         <div className="text-xs text-ink-secondary">
           <p className="text-sm font-medium text-ink">
-            {totalQty} pcs{isTransfer ? '' : ` · K ${fmtMMK(lineTotal)}`}
+            {t('common.pcs', { n: totalQty })}
+            {isTransfer ? '' : ` · K ${fmtMMK(lineTotal)}`}
           </p>
           {isTransfer ? (
             <p className="flex items-center gap-1">
               <CornerDownLeft size={11} aria-hidden="true" />
-              Enter moves down the colours · Enter on the last row loads the model
+              {t('vouchers.enterHintLoad')}
             </p>
           ) : nextTier && totalQty > 0 ? (
             <p>
-              {nextTier.minQty - effectiveQty} more pcs of this model →{' '}
-              {PRICE_TIERS[nextTier.key]?.label} at K{' '}
-              {fmtMMK(product.pricing?.[nextTier.key] ?? pricing.unitPrice)}
+              {t('vouchers.nextTier', {
+                more: nextTier.minQty - effectiveQty,
+                tier: t(`labels.priceTier.${nextTier.key}`),
+                price: fmtMMK(product.pricing?.[nextTier.key] ?? pricing.unitPrice),
+              })}
             </p>
           ) : (
             <p className="flex items-center gap-1">
               <CornerDownLeft size={11} aria-hidden="true" />
-              Enter moves down the colours · Enter on the last row adds the model
+              {t('vouchers.enterHintAdd')}
             </p>
           )}
         </div>
 
         <Button variant="primary" icon={Plus} onClick={commit} disabled={totalQty === 0}>
-          {addLabel ?? 'Add'} {totalQty > 0 ? `${totalQty} pcs` : isTransfer ? '' : 'to voucher'}
+          {totalQty > 0
+            ? t('vouchers.addPieces', { label: addLabel ?? t('vouchers.add'), pieces: totalQty })
+            : isTransfer
+              ? (addLabel ?? t('vouchers.add'))
+              : t('vouchers.addToVoucher')}
         </Button>
       </div>
     </div>

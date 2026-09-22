@@ -131,6 +131,63 @@ export function getDistrictForTownship(township) {
   return TOWNSHIP_DISTRICT_MAP[township] ?? null;
 }
 
+/**
+ * Burmese names for the townships above, for the Myanmar interface. Shops
+ * store the English name — it is the key districts, filters and reports join
+ * on — so this is display only, and an unknown name shows as stored.
+ */
+export const TOWNSHIP_LABELS_MM = {
+  Insein: 'အင်းစိန်',
+  Mingaladon: 'မင်္ဂလာဒုံ',
+  'Shwe Pyi Thar': 'ရွှေပြည်သာ',
+  Hlaingthaya: 'လှိုင်သာယာ',
+  'Mingalardon Garden City': 'မင်္ဂလာဒုံ ဂါးဒင်းစီးတီး',
+  Htantabin: 'ထန်းတပင်',
+  Thanlyin: 'သန်လျင်',
+  Dala: 'ဒလ',
+  Kyauktan: 'ကျောက်တန်း',
+  Twantay: 'တွံတေး',
+  'Seikkyi Kanaungto': 'ဆိပ်ကြီးခနောင်တို',
+  Kawhmu: 'ကော့မှူး',
+  Thingangyun: 'သင်္ဃန်းကျွန်း',
+  Yankin: 'ရန်ကင်း',
+  'South Okkalapa': 'တောင်ဥက္ကလာပ',
+  'North Okkalapa': 'မြောက်ဥက္ကလာပ',
+  Tamwe: 'တာမွေ',
+  'Mingala Taung Nyunt': 'မင်္ဂလာတောင်ညွန့်',
+  Botataung: 'ဗိုလ်တထောင်',
+  Pazundaung: 'ပုဇွန်တောင်',
+  Thaketa: 'သာကေတ',
+  Dawbon: 'ဒေါပုံ',
+  'Dagon Myothit (South)': 'ဒဂုံမြို့သစ် (တောင်ပိုင်း)',
+  'Dagon Myothit (North)': 'ဒဂုံမြို့သစ် (မြောက်ပိုင်း)',
+  'Dagon Myothit (East)': 'ဒဂုံမြို့သစ် (အရှေ့ပိုင်း)',
+  Latha: 'လသာ',
+  Lanmadaw: 'လမ်းမတော်',
+  Pabedan: 'ပန်းဘဲတန်း',
+  Kyauktada: 'ကျောက်တံတား',
+  Ahlone: 'အလုံ',
+  Kyeemyindaing: 'ကြည့်မြင်တိုင်',
+  Sanchaung: 'စမ်းချောင်း',
+  Kamayut: 'ကမာရွတ်',
+  Hlaing: 'လှိုင်',
+  Bahan: 'ဗဟန်း',
+  Mayangone: 'မရမ်းကုန်း',
+  Dagon: 'ဒဂုံ',
+  Seikkan: 'ဆိပ်ကမ်း',
+};
+
+export function townshipLabel(township, locale = 'en') {
+  if (!township) return township ?? '';
+  return locale === 'mm' ? TOWNSHIP_LABELS_MM[township] ?? township : township;
+}
+
+/** True when `term` (already lower-cased) matches the township in either language. */
+export function townshipMatches(township, term) {
+  if (!township) return false;
+  return township.toLowerCase().includes(term) || (TOWNSHIP_LABELS_MM[township] ?? '').includes(term);
+}
+
 export function districtLabel(district, locale = 'en') {
   return DISTRICT_LABELS[district]?.[locale] ?? DISTRICT_LABELS[district]?.en ?? district ?? '—';
 }

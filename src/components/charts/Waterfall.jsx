@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useLocale } from '../../context/LocaleContext';
 import { fmtMMK } from '../../lib/format';
 import { ChartTooltip, useChartTooltip } from './ChartTooltip';
 
@@ -19,6 +20,7 @@ import { ChartTooltip, useChartTooltip } from './ChartTooltip';
  * period draws correctly instead of collapsing to nothing.
  */
 export function Waterfall({ steps, height = 22 }) {
+  const { t } = useLocale();
   const { tip, show, move, hide } = useChartTooltip();
 
   const { rows, zeroPct, hasNegative } = useMemo(() => {
@@ -57,8 +59,8 @@ export function Waterfall({ steps, height = 22 }) {
   return (
     <div>
       <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-secondary">
-        <Key color="var(--diverge-pos)" label="Revenue & result" />
-        <Key color="var(--diverge-neg)" label="Deducted" />
+        <Key color="var(--diverge-pos)" label={t('charts.revenueResult')} />
+        <Key color="var(--diverge-neg)" label={t('charts.deducted')} />
       </ul>
 
       <ul className="space-y-1.5">
@@ -81,9 +83,7 @@ export function Waterfall({ steps, height = 22 }) {
                       {negative ? '−' : ''}K {fmtMMK(Math.abs(row.value))}
                     </p>
                     {!isResult ? (
-                      <p className="text-ink-muted">
-                        running total K {fmtMMK(row.end)}
-                      </p>
+                      <p className="text-ink-muted">{t('charts.runningTotal', { amount: fmtMMK(row.end) })}</p>
                     ) : null}
                   </div>,
                 )

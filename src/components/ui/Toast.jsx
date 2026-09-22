@@ -70,17 +70,17 @@ export function AppToaster() {
         loading: { iconTheme: { primary: 'var(--brand-primary)', secondary: 'var(--border-hair)' } },
       }}
     >
-      {(t) => (
-        <ToastBar toast={t}>
+      {(item) => (
+        <ToastBar toast={item}>
           {({ icon, message }) => (
             <>
               {icon}
               {message}
-              {t.type !== 'loading' ? (
+              {item.type !== 'loading' ? (
                 <button
                   type="button"
-                  onClick={() => toast.dismiss(t.id)}
-                  aria-label="Dismiss"
+                  onClick={() => toast.dismiss(item.id)}
+                  aria-label={t('ui.dismiss')}
                   className="shrink-0 rounded p-0.5 text-ink-muted hover:text-ink"
                 >
                   <X size={14} />

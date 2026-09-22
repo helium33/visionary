@@ -1,3 +1,5 @@
+import { tNow } from '../i18n/translate';
+
 /** Myanmar kyat. Wholesale figures run to 7–8 digits, so tiles compact them. */
 export function fmtMMK(amount, { compact = false, sign = false } = {}) {
   const value = Number(amount) || 0;
@@ -31,7 +33,7 @@ export function fmtPct(value, digits = 0) {
 export function fmtDays(days) {
   if (days == null) return '—';
   const n = Math.abs(days);
-  return `${n} ${n === 1 ? 'day' : 'days'}`;
+  return tNow(n === 1 ? 'common.dayOne' : 'common.dayMany', { n });
 }
 
 export function initialsOf(name = '') {

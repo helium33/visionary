@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
 import { Edit3, MapPin, Package, Phone } from 'lucide-react';
-import { districtLabel, getDistrictForTownship } from '../../constants/districts';
+import { districtLabel, getDistrictForTownship, townshipLabel } from '../../constants/districts';
 import { shopPurchaseHistory, shopPurchaseSummary } from '../../domain/shopPurchaseHistory';
 import { PRICE_TIERS } from '../../lib/constants';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
+import { useLocale } from '../../context/LocaleContext';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 
@@ -16,6 +17,7 @@ import { Modal } from '../ui/Modal';
  * "what do they currently owe".
  */
 export function ShopProfilePanel({ open, shop, vouchers = [], canEdit, onClose, onEdit }) {
+  const { t, locale } = useLocale();
   const rows = useMemo(() => shopPurchaseHistory(vouchers), [vouchers]);
   const summary = useMemo(() => shopPurchaseSummary(vouchers), [vouchers]);
 
@@ -34,11 +36,11 @@ export function ShopProfilePanel({ open, shop, vouchers = [], canEdit, onClose, 
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Close
+            {t('ui.close')}
           </Button>
           {canEdit ? (
             <Button variant="primary" icon={Edit3} onClick={() => onEdit(shop)}>
-              Edit shop
+              {t('shops.editShop')}
             </Button>
           ) : null}
         </>
@@ -48,8 +50,8 @@ export function ShopProfilePanel({ open, shop, vouchers = [], canEdit, onClose, 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-secondary">
           <span className="flex items-center gap-1">
             <MapPin size={13} aria-hidden="true" />
-            {shop.township}
-            {district ? ` · ${districtLabel(district)}` : ''}
+            {townshipLabel(shop.township, locale)}
+            {district ? ` · ${districtLabel(district, locale)}` : ''}
           </span>
           {shop.phone ? (
             <span className="flex items-center gap-1">
@@ -57,33 +59,33 @@ export function ShopProfilePanel({ open, shop, vouchers = [], canEdit, onClose, 
             </span>
           ) : null}
           {shop.ownerName ? <span>{shop.ownerName}</span> : null}
-          <span className="rounded bg-raised px-1.5 py-0.5">{tier.label}</span>
+          <span className="rounded bg-raised px-1.5 py-0.5">{t(`labels.priceTier.${tier.key}`)}</span>
           <span className="rounded bg-raised px-1.5 py-0.5">{shop.code}</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <MiniStat label="Lifetime revenue" value={`K ${fmtMMK(summary.revenue, { compact: true })}`} />
-          <MiniStat label="Vouchers" value={summary.voucherCount} />
-          <MiniStat label="Pieces bought" value={summary.pieces} />
+          <MiniStat label={t('shops.statLifetime')} value={`K ${fmtMMK(summary.revenue, { compact: true })}`} />
+          <MiniStat label={t('shops.statVouchers')} value={summary.voucherCount} />
+          <MiniStat label={t('shops.statPieces')} value={summary.pieces} />
           <MiniStat
-            label="Credit limit"
-            value={shop.creditLimit ? `K ${fmtMMK(shop.creditLimit, { compact: true })}` : 'No limit'}
+            label={t('shops.statLimit')}
+            value={shop.creditLimit ? `K ${fmtMMK(shop.creditLimit, { compact: true })}` : t('shops.noLimit')}
           />
         </div>
 
         <div>
           <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-ink">
-            <Package size={13} aria-hidden="true" /> Full purchase history
+            <Package size={13} aria-hidden="true" /> {t('shops.historyTitle')}
           </h3>
           <div className="max-h-80 overflow-y-auto overflow-x-auto rounded-card border border-line-hair">
             <table className="w-full min-w-[560px] text-sm">
               <thead className="sticky top-0 bg-surface">
                 <tr className="border-b border-line-hair text-left text-2xs text-ink-secondary">
-                  <th className="px-3 py-2 font-medium">Date</th>
-                  <th className="px-3 py-2 font-medium">Model</th>
-                  <th className="px-3 py-2 font-medium">Colour</th>
-                  <th className="px-3 py-2 text-right font-medium">Qty</th>
-                  <th className="px-3 py-2 text-right font-medium">Amount</th>
+                  <th className="px-3 py-2 font-medium">{t('shops.colDate')}</th>
+                  <th className="px-3 py-2 font-medium">{t('shops.colModel')}</th>
+                  <th className="px-3 py-2 font-medium">{t('shops.colColour')}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t('shops.colQty')}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t('shops.colAmount')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -94,7 +96,7 @@ export function ShopProfilePanel({ open, shop, vouchers = [], canEdit, onClose, 
                       {row.modelNo}
                       {row.type === 'CONSIGNMENT' ? (
                         <span className="ml-1.5 rounded bg-wash-accent px-1 py-0.5 text-2xs text-ink-secondary">
-                          consignment
+                          {t('shops.consignmentTag')}
                         </span>
                       ) : null}
                     </td>
@@ -108,7 +110,7 @@ export function ShopProfilePanel({ open, shop, vouchers = [], canEdit, onClose, 
                 {rows.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-3 py-6 text-center text-xs text-ink-secondary">
-                      No purchases on record for this shop yet.
+                      {t('shops.noHistory')}
                     </td>
                   </tr>
                 ) : null}

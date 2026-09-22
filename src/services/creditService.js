@@ -12,6 +12,7 @@ import { COL, app, db, isDemoMode } from '../lib/firebase';
 import { allocatePayment } from '../domain/allocation';
 import { logAudit } from './auditService';
 import { demoSettings } from '../data/demoData';
+import { tNow } from '../i18n/translate';
 
 export const OVERRIDE_MINUTES = 30;
 
@@ -40,14 +41,13 @@ export async function requestCreditOverride({ shopId, password, reason, actor, i
     return {
       ok: false,
       code: 'OFFLINE',
-      message:
-        'Overrides are verified by the server. You are offline — call the office to release this shop.',
+      message: tNow('credit.err.offline'),
     };
   }
 
   if (isDemoMode) {
     if (password !== demoSettings.masterPasswordHint) {
-      return { ok: false, code: 'BAD_PASSWORD', message: 'Incorrect master password.' };
+      return { ok: false, code: 'BAD_PASSWORD', message: tNow('credit.err.badPassword') };
     }
     const expiresAt = addMinutes(new Date(), OVERRIDE_MINUTES);
     await logAudit({
@@ -75,8 +75,8 @@ export async function requestCreditOverride({ shopId, password, reason, actor, i
       code,
       message:
         code === 'BAD_PASSWORD'
-          ? 'Incorrect master password.'
-          : 'Could not reach the server to verify the override.',
+          ? tNow('credit.err.badPassword')
+          : tNow('credit.err.serverUnreachable'),
     };
   }
 }
@@ -94,7 +94,7 @@ export async function requestCreditOverride({ shopId, password, reason, actor, i
 export async function recordPayment({ shop, vouchers, amount, method, note, actor, today = new Date() }) {
   const result = allocatePayment(vouchers, amount, today);
   if (result.applied === 0 && result.unapplied === 0) {
-    return { ok: false, message: 'Enter an amount greater than zero.' };
+    return { ok: false, message: tNow('common.amountZero') };
   }
 
   const receiptNo = buildReceiptNo(actor, today);

@@ -8,6 +8,8 @@ import {
   shareTo,
 } from '../../services/statementService';
 import { COMPANY } from '../../lib/constants';
+import { townshipLabel } from '../../constants/districts';
+import { useLocale } from '../../context/LocaleContext';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
 import { useToast } from '../ui/Toast';
@@ -26,26 +28,32 @@ import { Modal } from '../ui/Modal';
  * in a client-side PDF.
  */
 export function StatementModal({ open, shop, state, onClose }) {
+  const { t, locale } = useLocale();
   const toast = useToast();
   const [mode, setMode] = useState('reminder');
 
-  const text = useMemo(() => {
-    if (!shop || !state) return '';
-    return mode === 'reminder' ? buildReminderText(shop, state) : buildStatementText(shop, state);
-  }, [shop, state, mode]);
+  const text = useMemo(
+    () => {
+      if (!shop || !state) return '';
+      return mode === 'reminder' ? buildReminderText(shop, state) : buildStatementText(shop, state);
+    },
+    // locale: the message is built in the reader's language.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [shop, state, mode, locale],
+  );
 
   if (!open || !shop) return null;
 
   const onCopy = async () => {
     const ok = await copyText(text);
-    toast.push(ok ? 'Message copied.' : 'Could not copy — select the text and copy manually.', {
+    toast.push(ok ? t('credit.messageCopied') : t('common.copyFailed'), {
       tone: ok ? 'success' : 'error',
     });
   };
 
   const onSend = async (target) => {
     if (target === 'native') {
-      const shared = await nativeShare(`Statement — ${shop.name}`, text);
+      const shared = await nativeShare(t('credit.statementShareTitle', { shop: shop.name }), text);
       if (!shared) await onCopy();
       return;
     }
@@ -57,18 +65,18 @@ export function StatementModal({ open, shop, state, onClose }) {
       open={open}
       onClose={onClose}
       width="max-w-2xl"
-      title="Send statement"
-      subtitle={`${shop.name} · ${shop.phone ?? 'no phone on file'}`}
+      title={t('credit.sendStatement')}
+      subtitle={`${shop.name} · ${shop.phone ?? t('credit.noPhone')}`}
       footer={
         <>
           <Button variant="ghost" onClick={onClose}>
-            Close
+            {t('ui.close')}
           </Button>
           <Button variant="secondary" icon={Printer} onClick={() => window.print()}>
-            Print / PDF
+            {t('credit.printPdf')}
           </Button>
           <Button variant="primary" icon={Send} onClick={() => onSend('native')}>
-            Share
+            {t('common.share')}
           </Button>
         </>
       }
@@ -76,8 +84,8 @@ export function StatementModal({ open, shop, state, onClose }) {
       <div className="space-y-4">
         <div className="flex gap-1 rounded-md border border-line-hair p-0.5 text-xs">
           {[
-            ['reminder', 'Short reminder'],
-            ['statement', 'Full statement'],
+            ['reminder', t('credit.shortReminder')],
+            ['statement', t('credit.fullStatement')],
           ].map(([key, label]) => (
             <button
               key={key}
@@ -107,14 +115,11 @@ export function StatementModal({ open, shop, state, onClose }) {
             SMS
           </Button>
           <Button size="sm" variant="quiet" icon={Copy} onClick={onCopy}>
-            Copy
+            {t('credit.copy')}
           </Button>
         </div>
 
-        <p className="text-2xs text-ink-secondary">
-          Viber and Telegram open their share sheet with this text pre-filled; if the app is not
-          installed the text is copied to the clipboard instead.
-        </p>
+        <p className="text-2xs text-ink-secondary">{t('credit.shareHint')}</p>
       </div>
 
       {/* Print region — A5 statement. Hidden on screen, the only thing printed. */}
@@ -124,6 +129,7 @@ export function StatementModal({ open, shop, state, onClose }) {
 }
 
 function PrintableStatement({ shop, state }) {
+  const { t, locale } = useLocale();
   return (
     <div className="print-region hidden print:block">
       <div style={{ padding: '14mm', fontSize: '11pt', color: '#000' }}>
@@ -133,22 +139,22 @@ function PrintableStatement({ shop, state }) {
         </p>
         <hr style={{ margin: '10px 0', border: 0, borderTop: '1px solid #000' }} />
 
-        <h2 style={{ fontSize: '12pt', margin: '0 0 6px' }}>Statement of Account</h2>
+        <h2 style={{ fontSize: '12pt', margin: '0 0 6px' }}>{t('credit.statementOfAccount')}</h2>
         <p style={{ margin: 0 }}>
           <strong>{shop.name}</strong>
           {shop.nameMM ? <span className="mm"> ({shop.nameMM})</span> : null}
           <br />
-          {shop.township} · {shop.ownerName} · {shop.phone}
+          {townshipLabel(shop.township, locale)} · {shop.ownerName} · {shop.phone}
           <br />
-          Date: {fmtDate(state.evaluatedAt)}
+          {t('credit.statementDate', { date: fmtDate(state.evaluatedAt) })}
         </p>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px', fontSize: '10pt' }}>
           <thead>
             <tr>
-              {['Voucher', 'Issued', 'Due', 'Balance', 'Status'].map((h) => (
-                <th key={h} style={{ textAlign: 'left', borderBottom: '1px solid #000', padding: '4px 2px' }}>
-                  {h}
+              {['colVoucher', 'colIssued', 'colDue', 'colBalance', 'colStatus'].map((key) => (
+                <th key={key} style={{ textAlign: 'left', borderBottom: '1px solid #000', padding: '4px 2px' }}>
+                  {t(`credit.${key}`)}
                 </th>
               ))}
             </tr>
@@ -163,7 +169,9 @@ function PrintableStatement({ shop, state }) {
                   {fmtMMK(aging.balanceDue)}
                 </td>
                 <td style={{ padding: '4px 2px', borderBottom: '1px solid #ccc' }}>
-                  {aging.isOverdue ? `OVERDUE ${aging.daysOverdue}d` : `due in ${aging.daysUntilDue}d`}
+                  {aging.isOverdue
+                    ? t('credit.overdueTag', { n: aging.daysOverdue })
+                    : t('credit.dueInTag', { n: aging.daysUntilDue })}
                 </td>
               </tr>
             ))}
@@ -171,7 +179,7 @@ function PrintableStatement({ shop, state }) {
           <tfoot>
             <tr>
               <td colSpan={3} style={{ padding: '6px 2px', fontWeight: 700 }}>
-                Total outstanding
+                {t('credit.totalOutstanding')}
               </td>
               <td style={{ padding: '6px 2px', textAlign: 'right', fontWeight: 700 }}>
                 {fmtMMK(state.outstanding)}
@@ -182,8 +190,7 @@ function PrintableStatement({ shop, state }) {
         </table>
 
         <p style={{ marginTop: '10px', fontSize: '9pt' }}>
-          Credit term: {shop.creditTermDays ?? 14} days from voucher date. Accounts past term are
-          suspended for new orders until settled.
+          {t('credit.creditTermNote', { days: shop.creditTermDays ?? 14 })}
         </p>
       </div>
     </div>

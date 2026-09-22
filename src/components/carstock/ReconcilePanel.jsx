@@ -10,6 +10,7 @@ import {
 import { closeTrip } from '../../services/carStockService';
 import { fmtMMK } from '../../lib/format';
 import { useAuth } from '../../context/AuthContext';
+import { useLocale } from '../../context/LocaleContext';
 import { useToast } from '../ui/Toast';
 import { Button } from '../ui/Button';
 
@@ -24,6 +25,7 @@ import { Button } from '../ui/Button';
  */
 export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
   const { user } = useAuth();
+  const { t } = useLocale();
   const toast = useToast();
   const [counts, setCounts] = useState({});
   const [cash, setCash] = useState('');
@@ -64,9 +66,17 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
       return;
     }
     toast.push(
-      `${reconciliation.trip.tripNo} settled` +
-        (live.shortPieces ? ` · ${live.shortPieces} pcs short (K ${fmtMMK(live.shortValue)})` : '') +
-        (live.cashVariance ? ` · cash off by K ${fmtMMK(Math.abs(live.cashVariance))}` : ''),
+      [
+        t('carstock.settledToast', { trip: reconciliation.trip.tripNo }),
+        live.shortPieces
+          ? t('carstock.toastShort', { n: live.shortPieces, amount: fmtMMK(live.shortValue) })
+          : null,
+        live.cashVariance
+          ? t('carstock.toastCashOff', { amount: fmtMMK(Math.abs(live.cashVariance)) })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · '),
       { tone: live.balanced ? 'success' : 'info' },
     );
     onClosed?.(result);
@@ -76,10 +86,10 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
     <div className="space-y-4">
       <div className="rounded-card border border-line-hair">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line-hair px-3 py-2">
-          <p className="text-xs font-medium text-ink">Count the bag</p>
+          <p className="text-xs font-medium text-ink">{t('carstock.countBag')}</p>
           <p className="text-2xs text-ink-secondary">
-            Took {live.piecesOut} · sold {live.piecesSold} · should have{' '}
-            <span className="font-medium text-ink">{live.piecesExpected}</span>
+            {t('carstock.tookSoldHeader', { took: live.piecesOut, sold: live.piecesSold })} ·{' '}
+            {t('carstock.shouldHave')} <span className="font-medium text-ink">{live.piecesExpected}</span>
           </p>
         </div>
 
@@ -97,8 +107,8 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
                       <span className="text-ink-secondary">{line.colorCode}</span>
                     </p>
                     <p className="text-2xs text-ink-secondary">
-                      took {line.opening + line.loaded} · sold {line.sold} · should have{' '}
-                      <span className="font-medium text-ink">{line.expected}</span>
+                      {t('carstock.tookSold', { took: line.opening + line.loaded, sold: line.sold })} ·{' '}
+                      {t('carstock.shouldHave')} <span className="font-medium text-ink">{line.expected}</span>
                     </p>
                   </div>
 
@@ -120,7 +130,7 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
                     ) : null}
                     <input
                       inputMode="numeric"
-                      aria-label={`Counted ${line.modelNo} ${line.colorCode}`}
+                      aria-label={t('carstock.countedItem', { item: `${line.modelNo} ${line.colorCode}` })}
                       value={counts[line.key] ?? line.expected}
                       onChange={(e) => setCounts((prev) => ({ ...prev, [line.key]: e.target.value }))}
                       className={`h-9 w-14 rounded border bg-surface text-center text-sm
@@ -138,12 +148,12 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
         <div className="hidden overflow-x-auto lg:block">
           <table className="w-full min-w-[520px] text-sm">            <thead>
               <tr className="border-b border-line-hair text-left text-2xs text-ink-secondary">
-                <th className="px-3 py-2 font-medium">Item</th>
-                <th className="px-2 py-2 text-right font-medium">Took</th>
-                <th className="px-2 py-2 text-right font-medium">Sold</th>
-                <th className="px-2 py-2 text-right font-medium">Should have</th>
-                <th className="px-2 py-2 text-center font-medium">Counted</th>
-                <th className="px-3 py-2 text-right font-medium">Variance</th>
+                <th className="px-3 py-2 font-medium">{t('carstock.colItem')}</th>
+                <th className="px-2 py-2 text-right font-medium">{t('carstock.colTook')}</th>
+                <th className="px-2 py-2 text-right font-medium">{t('carstock.colSold')}</th>
+                <th className="px-2 py-2 text-right font-medium">{t('carstock.colShouldHave')}</th>
+                <th className="px-2 py-2 text-center font-medium">{t('carstock.colCounted')}</th>
+                <th className="px-3 py-2 text-right font-medium">{t('carstock.colVariance')}</th>
               </tr>
             </thead>
             <tbody>
@@ -168,7 +178,7 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
                     <td className="px-2 py-2 text-center">
                       <input
                         inputMode="numeric"
-                        aria-label={`Counted ${line.modelNo} ${line.colorCode}`}
+                        aria-label={t('carstock.countedItem', { item: `${line.modelNo} ${line.colorCode}` })}
                         value={counts[line.key] ?? line.expected}
                         onChange={(e) =>
                           setCounts((prev) => ({ ...prev, [line.key]: e.target.value }))
@@ -214,21 +224,21 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
         <div className="rounded-card border border-line-hair p-3">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-ink">
             <Banknote size={13} aria-hidden="true" />
-            Cash to hand over
+            {t('carstock.cashToHandOver')}
           </p>
 
           <dl className="space-y-1.5 text-sm">
-            <Row label="Cash collected today" value={live.expectedCash} strong />
+            <Row label={t('carstock.cashCollectedToday')} value={live.expectedCash} strong />
             <Row
-              label="Collected by phone"
+              label={t('carstock.collectedByPhone')}
               value={live.digitalCollected}
-              note="already in the bank"
+              note={t('carstock.alreadyInBank')}
               icon={Smartphone}
             />
           </dl>
 
           <label className="mt-3 block">
-            <span className="mb-1 block text-xs font-medium text-ink">Cash counted</span>
+            <span className="mb-1 block text-xs font-medium text-ink">{t('carstock.cashCounted')}</span>
             <input
               inputMode="numeric"
               value={cash}
@@ -254,32 +264,33 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
                 <AlertTriangle size={13} aria-hidden="true" />
               )}
               {live.cashVariance === 0
-                ? 'Cash agrees'
-                : `${cashShort ? 'Short' : 'Over'} by K ${fmtMMK(Math.abs(live.cashVariance))}`}
+                ? t('carstock.cashAgrees')
+                : t(cashShort ? 'carstock.cashShortBy' : 'carstock.cashOverBy', {
+                    amount: fmtMMK(Math.abs(live.cashVariance)),
+                  })}
             </p>
           ) : (
-            <p className="mt-2 text-2xs text-ink-muted">
-              Leave blank to accept the expected figure.
-            </p>
+            <p className="mt-2 text-2xs text-ink-muted">{t('carstock.leaveBlank')}</p>
           )}
         </div>
 
         <div className="rounded-card border border-line-hair p-3">
           <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-ink">
             <CreditCard size={13} aria-hidden="true" />
-            Left on the shops&rsquo; accounts
+            {t('carstock.leftOnAccounts')}
           </p>
           <dl className="space-y-1.5 text-sm">
-            <Row label="Sold on credit today" value={live.creditIssued} strong />
-            <Row label="Sales written" value={live.salesValue} />
+            <Row label={t('carstock.soldOnCredit')} value={live.creditIssued} strong />
+            <Row label={t('carstock.salesWritten')} value={live.salesValue} />
             {live.consignedValue > 0 ? (
-              <Row label="Consignment placed" value={live.consignedValue} note="not revenue yet" />
+              <Row
+                label={t('carstock.consignmentPlaced')}
+                value={live.consignedValue}
+                note={t('carstock.notRevenueYet')}
+              />
             ) : null}
           </dl>
-          <p className="mt-2 text-2xs text-ink-muted">
-            New credit is the expected result of selling on 14-day terms, not a discrepancy — it
-            moves to credit control, where the clock is already running.
-          </p>
+          <p className="mt-2 text-2xs text-ink-muted">{t('carstock.newCreditNote')}</p>
         </div>
       </div>
 
@@ -291,14 +302,14 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
             onChange={(e) => setReturnToWarehouse(e.target.checked)}
             className="h-3.5 w-3.5"
           />
-          Return remaining stock to the warehouse
+          {t('carstock.returnRemaining')}
           <span className="text-ink-muted">
-            ({live.piecesCounted ?? live.piecesExpected} pcs)
+            ({t('common.pcs', { n: live.piecesCounted ?? live.piecesExpected })})
           </span>
         </label>
 
         <Button variant="primary" icon={PackageCheck} disabled={saving} onClick={onSettle}>
-          {saving ? 'Settling…' : 'Settle trip'}
+          {saving ? t('carstock.settling') : t('carstock.settleTrip')}
         </Button>
       </div>
 
@@ -306,16 +317,31 @@ export function ReconcilePanel({ reconciliation, onCounted, onClosed }) {
         <p className="flex items-start gap-2 rounded-card border border-status-serious/40 bg-wash-serious px-3 py-2.5 text-xs text-ink-secondary">
           <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
           <span>
-            Settling now records the difference as an adjustment against{' '}
-            {reconciliation.trip.repName} — {live.shortPieces > 0 ? `${live.shortPieces} pcs ` : ''}
-            {live.shortValue > 0 ? `(K ${fmtMMK(live.shortValue)}) ` : ''}
-            {live.cashVariance ? `and K ${fmtMMK(Math.abs(live.cashVariance))} of cash ` : ''}
-            will be written to the stock journal, not absorbed quietly.
+            {t('carstock.adjustmentNote', {
+              rep: reconciliation.trip.repName,
+              what: adjustmentWhat(live, t),
+            })}
           </span>
         </p>
       ) : null}
     </div>
   );
+}
+
+/** "3 pcs (K 45,000) and K 20,000 of cash" — whichever parts are off. */
+function adjustmentWhat(live, t) {
+  const parts = [];
+  if (live.shortPieces > 0) {
+    parts.push(
+      live.shortValue > 0
+        ? t('carstock.adjPiecesValue', { n: live.shortPieces, amount: fmtMMK(live.shortValue) })
+        : t('carstock.adjPieces', { n: live.shortPieces }),
+    );
+  }
+  if (live.cashVariance) {
+    parts.push(t('carstock.adjCash', { amount: fmtMMK(Math.abs(live.cashVariance)) }));
+  }
+  return parts.length ? parts.join(t('carstock.and')) : t('carstock.adjDifference');
 }
 
 function Row({ label, value, strong, note, icon: Icon }) {

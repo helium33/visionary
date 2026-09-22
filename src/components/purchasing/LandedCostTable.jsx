@@ -1,5 +1,6 @@
-import { CHARGE_KEYS, CHARGE_LABELS, lineMargin } from '../../domain/landedCost';
+import { CHARGE_KEYS, lineMargin } from '../../domain/landedCost';
 import { fmtMMK, fmtPct } from '../../lib/format';
+import { useLocale } from '../../context/LocaleContext';
 
 /**
  * The landed-cost breakdown — the table that answers "what did this piece
@@ -10,18 +11,19 @@ import { fmtMMK, fmtPct } from '../../lib/format';
  * cost is 40% freight is a different conversation from one that is 8%.
  */
 export function LandedCostTable({ costed, productsById, tier = 'STANDARD' }) {
+  const { t } = useLocale();
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[780px] text-sm">
         <thead>
           <tr className="border-b border-line-hair text-left text-2xs text-ink-secondary">
-            <th className="px-4 py-2 font-medium">Item</th>
-            <th className="px-3 py-2 text-right font-medium">Qty</th>
-            <th className="px-3 py-2 text-right font-medium">Factory</th>
-            <th className="px-3 py-2 text-right font-medium">Freight share</th>
-            <th className="px-3 py-2 text-right font-medium">Landed / pc</th>
-            <th className="px-3 py-2 text-right font-medium">Sells at</th>
-            <th className="px-4 py-2 text-right font-medium">Margin</th>
+            <th className="px-4 py-2 font-medium">{t('purchasing.colItem')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('purchasing.colQty')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('purchasing.colFactory')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('purchasing.colFreightShare')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('purchasing.colLandedPc')}</th>
+            <th className="px-3 py-2 text-right font-medium">{t('purchasing.colSellsAt')}</th>
+            <th className="px-4 py-2 text-right font-medium">{t('purchasing.colMargin')}</th>
           </tr>
         </thead>
         <tbody>
@@ -46,20 +48,20 @@ export function LandedCostTable({ costed, productsById, tier = 'STANDARD' }) {
                   {line.qty}
                   {line.orderedQty != null && line.orderedQty !== line.qty ? (
                     <span className="block text-2xs text-status-serious">
-                      of {line.orderedQty}
+                      {t('purchasing.ofOrdered', { n: line.orderedQty })}
                     </span>
                   ) : null}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-ink-secondary">
                   {fmtMMK(line.factoryMMK)}
                   <span className="block text-2xs text-ink-muted">
-                    {fmtMMK(Math.round(line.factoryMMK / (line.qty || 1)))} / pc
+                    {t('purchasing.perPc', { amount: fmtMMK(Math.round(line.factoryMMK / (line.qty || 1))) })}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-ink-secondary">
                   {fmtMMK(line.chargeShare)}
                   <span className="block text-2xs text-ink-muted">
-                    {fmtPct(line.chargeSharePct, 1)} of cost
+                    {t('purchasing.ofCost', { pct: fmtPct(line.chargeSharePct, 1) })}
                   </span>
                 </td>
                 <td className="px-3 py-2 text-right font-medium tabular-nums text-ink">
@@ -83,7 +85,7 @@ export function LandedCostTable({ costed, productsById, tier = 'STANDARD' }) {
                         {fmtPct(margin.marginPct, 1)}
                       </span>
                       <span className="block text-2xs tabular-nums text-ink-muted">
-                        {fmtMMK(margin.margin)} / pc
+                        {t('purchasing.perPc', { amount: fmtMMK(margin.margin) })}
                       </span>
                     </>
                   ) : (
@@ -96,7 +98,7 @@ export function LandedCostTable({ costed, productsById, tier = 'STANDARD' }) {
         </tbody>
         <tfoot>
           <tr className="border-t border-line-base">
-            <td className="px-4 py-2 font-medium text-ink">Total</td>
+            <td className="px-4 py-2 font-medium text-ink">{t('purchasing.total')}</td>
             <td className="px-3 py-2 text-right font-medium tabular-nums text-ink">
               {costed.totalQty}
             </td>
@@ -108,10 +110,10 @@ export function LandedCostTable({ costed, productsById, tier = 'STANDARD' }) {
             </td>
             <td className="px-3 py-2 text-right font-medium tabular-nums text-ink">
               {fmtMMK(costed.averageUnitCost)}
-              <span className="block text-2xs font-normal text-ink-muted">average</span>
+              <span className="block text-2xs font-normal text-ink-muted">{t('purchasing.average')}</span>
             </td>
             <td colSpan={2} className="px-4 py-2 text-right text-2xs text-ink-secondary">
-              Landed K {fmtMMK(costed.totalLanded)}
+              {t('purchasing.landedTotalShort', { amount: fmtMMK(costed.totalLanded) })}
             </td>
           </tr>
         </tfoot>
@@ -122,12 +124,13 @@ export function LandedCostTable({ costed, productsById, tier = 'STANDARD' }) {
 
 /** The charge lines, and what they add to the goods. */
 export function ChargeSummary({ po, costed, editable, onChange }) {
+  const { t } = useLocale();
   return (
     <div className="rounded-card border border-line-hair">
       <div className="flex items-baseline justify-between gap-3 border-b border-line-hair px-3 py-2">
-        <p className="text-xs font-medium text-ink">Charges</p>
+        <p className="text-xs font-medium text-ink">{t('purchasing.charges')}</p>
         <p className="text-2xs text-ink-secondary">
-          spread {po.allocationBasis === 'BY_QTY' ? 'per piece' : 'by value'}
+          {t(po.allocationBasis === 'BY_QTY' ? 'purchasing.spreadPerPiece' : 'purchasing.spreadByValue')}
         </p>
       </div>
 
@@ -135,7 +138,7 @@ export function ChargeSummary({ po, costed, editable, onChange }) {
         {CHARGE_KEYS.map((key) => (
           <li key={key} className="flex items-center justify-between gap-3 px-3 py-1.5">
             <label htmlFor={`charge-${key}`} className="text-xs text-ink-secondary">
-              {CHARGE_LABELS[key]}
+              {t(`purchasing.charge.${key}`)}
             </label>
             {editable ? (
               <input
@@ -155,12 +158,14 @@ export function ChargeSummary({ po, costed, editable, onChange }) {
       </ul>
 
       <div className="space-y-1 border-t border-line-hair px-3 py-2">
-        <Row label="Goods at factory" value={costed.totalFactoryMMK} />
-        <Row label="Charges" value={costed.totalCharges} />
-        <Row label="Landed total" value={costed.totalLanded} strong />
+        <Row label={t('purchasing.goodsAtFactory')} value={costed.totalFactoryMMK} />
+        <Row label={t('purchasing.charges')} value={costed.totalCharges} />
+        <Row label={t('purchasing.landedTotal')} value={costed.totalLanded} strong />
         <p className="pt-1 text-2xs text-ink-muted">
-          Charges add {fmtPct(costed.chargeUpliftPct, 1)} to the factory price — K{' '}
-          {fmtMMK(costed.averageUnitCost)} average per piece.
+          {t('purchasing.upliftNote', {
+            pct: fmtPct(costed.chargeUpliftPct, 1),
+            avg: fmtMMK(costed.averageUnitCost),
+          })}
         </p>
       </div>
     </div>

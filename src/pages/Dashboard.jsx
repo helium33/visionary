@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { CREDIT_STATUS } from '../domain/credit';
 import { fmtMMK } from '../lib/format';
+import { townshipLabel } from '../constants/districts';
 import { useLocale } from '../context/LocaleContext';
 import { useCreditData } from '../hooks/useCreditData';
 import { useSalesAnalytics } from '../hooks/useSalesAnalytics';
@@ -31,7 +32,7 @@ import { DueMeter } from '../components/credit/DueMeter';
  * supporting detail — never a wall of equal-weight tiles.
  */
 export default function Dashboard() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { portfolio, loading: creditLoading } = useCreditData();
   const analytics = useSalesAnalytics({ days: 90 });
   const { totals } = portfolio;
@@ -84,14 +85,17 @@ export default function Dashboard() {
               label={t('dashboard.revenue90')}
               value={analytics.revenue}
               icon={TrendingUp}
-              footnote={`${analytics.voucherCount} ${t('common.vouchers')} · avg K ${fmtMMK(analytics.avgVoucher, { compact: true })}`}
+              footnote={t('dashboard.voucherAvg', {
+                count: analytics.voucherCount,
+                avg: fmtMMK(analytics.avgVoucher, { compact: true }),
+              })}
             />
             <StatTile
               label={t('dashboard.cashCollected')}
               value={analytics.collected}
               icon={Banknote}
               tone="good"
-              footnote={`${collectionRate.toFixed(0)}% of revenue issued`}
+              footnote={t('dashboard.collectionRate', { pct: collectionRate.toFixed(0) })}
             />
             <StatTile
               label={t('dashboard.consignmentOut')}
@@ -133,7 +137,7 @@ export default function Dashboard() {
               icon={MapPin}
             />
             <CardBody>
-              {analytics.loading ? <SkeletonRows rows={5} /> : <BarList rows={analytics.topTownships} />}
+              {analytics.loading ? <SkeletonRows rows={5} /> : <BarList rows={analytics.topTownships.map((row) => ({ ...row, label: townshipLabel(row.key, locale) }))} />}
             </CardBody>
           </Card>
 
@@ -172,7 +176,7 @@ export default function Dashboard() {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-ink">{shop.name}</p>
                     <p className="text-2xs text-ink-secondary">
-                      {shop.township} · {state.oldestVoucher?.voucherNo ?? '—'}
+                      {townshipLabel(shop.township, locale)} · {state.oldestVoucher?.voucherNo ?? '—'}
                     </p>
                   </div>
                   <DueMeter aging={state.oldestAging} />

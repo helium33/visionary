@@ -1,0 +1,38 @@
+export const header = {
+  en: {
+    demoData: 'Demo data',
+    synced: 'Synced',
+    syncing: 'Syncing…',
+    offline: 'Offline — saving locally',
+    language: 'Language',
+    theme: 'Theme',
+    lightMode: 'Light mode',
+    darkMode: 'Dark mode',
+    logout: 'Logout',
+    offlineHint:
+      'Vouchers and payments are written to the local cache and sync automatically when a connection returns.',
+    syncingHint: 'Some writes are still queued.',
+    syncedHint: 'All local changes are on the server.',
+    openMenu: 'Open menu',
+    closeMenu: 'Close menu',
+    switchDemoRole: 'Switch demo role',
+  },
+  mm: {
+    demoData: 'သရုပ်ပြ အချက်အလက်',
+    synced: 'ထပ်တူညီပြီ',
+    syncing: 'ထပ်တူညှိနေသည်…',
+    offline: 'အော့ဖ်လိုင်း — ဒေသခံသိမ်းနေသည်',
+    language: 'ဘာသာစကား',
+    theme: 'အသွင်အပြင်',
+    lightMode: 'အလင်းအသွင်',
+    darkMode: 'အမှောင်အသွင်',
+    logout: 'ထွက်ရန်',
+    offlineHint:
+      'ဘောက်ချာနှင့် ငွေပေးချေမှုများကို ဤစက်တွင် သိမ်းထားပြီး အင်တာနက်ပြန်ရသည့်အခါ အလိုအလျောက် ထပ်တူညှိပါမည်။',
+    syncingHint: 'ပို့ရန် ကျန်နေသေးသော ပြင်ဆင်မှုအချို့ ရှိပါသည်။',
+    syncedHint: 'ဤစက်ရှိ ပြင်ဆင်မှုအားလုံး ဆာဗာသို့ ရောက်ပြီးပါပြီ။',
+    openMenu: 'မီနူးဖွင့်ရန်',
+    closeMenu: 'မီနူးပိတ်ရန်',
+    switchDemoRole: 'သရုပ်ပြ ရာထူး ပြောင်းရန်',
+  },
+};

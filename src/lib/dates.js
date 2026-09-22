@@ -5,6 +5,8 @@ import {
   isValid,
   startOfDay,
 } from 'date-fns';
+import { myanmarDateLocale } from '../i18n/dateLocale';
+import { getActiveLocale } from '../i18n/translate';
 
 /**
  * Normalises anything the app might hold as a date into a JS Date.
@@ -48,7 +50,8 @@ export function addDaysTo(value, days) {
 
 export function fmtDate(value, pattern = 'dd MMM yyyy') {
   const date = toDate(value);
-  return date ? format(date, pattern) : '—';
+  if (!date) return '—';
+  return format(date, pattern, getActiveLocale() === 'mm' ? { locale: myanmarDateLocale } : undefined);
 }
 
 export function fmtDateTime(value) {

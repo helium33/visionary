@@ -5,6 +5,7 @@ import { demoSettings } from '../data/demoData';
 import { updateDemoUser } from '../data/demoUsersStore';
 import { ROLES } from '../lib/constants';
 import { logAudit } from './auditService';
+import { tNow } from '../i18n/translate';
 
 /**
  * ---------------------------------------------------------------------------
@@ -25,7 +26,7 @@ import { logAudit } from './auditService';
 
 export async function updateUserRole({ userId, role, actor }) {
   if (!ROLES[role]) {
-    return { ok: false, message: `Unknown role "${role}".` };
+    return { ok: false, message: tNow('admin.err.unknownRole', { role }) };
   }
 
   if (isDemoMode) {
@@ -97,12 +98,12 @@ export async function updateUserProfile({ userId, patch, actor }) {
  */
 export async function rotateMasterPassword({ currentPassword, newPassword, actor }) {
   if (!newPassword || newPassword.length < 4) {
-    return { ok: false, message: 'New password must be at least 4 characters.' };
+    return { ok: false, message: tNow('admin.err.passwordTooShort') };
   }
 
   if (isDemoMode) {
     if (currentPassword !== demoSettings.masterPasswordHint) {
-      return { ok: false, message: 'Current password is incorrect.' };
+      return { ok: false, message: tNow('admin.err.currentIncorrect') };
     }
     demoSettings.masterPasswordHint = newPassword;
     await logAudit({ actor, action: 'MASTER_PASSWORD_ROTATE', entity: COL.settings, entityId: 'config' });
@@ -121,8 +122,8 @@ export async function rotateMasterPassword({ currentPassword, newPassword, actor
       code,
       message:
         code === 'BAD_PASSWORD'
-          ? 'Current password is incorrect.'
-          : 'Could not reach the server to rotate the password.',
+          ? tNow('admin.err.currentIncorrect')
+          : tNow('admin.err.rotateUnreachable'),
     };
   }
 }
