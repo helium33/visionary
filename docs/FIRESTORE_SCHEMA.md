@@ -151,7 +151,11 @@ here: a signed-in session must never be able to grant itself a claim by writing 
   name: 'Shwe Myint Optical',
   nameMM: 'ရွှေမြင့်မျက်မှန်ဆိုင်',
   township: 'Latha',              // indexed — township analytics + rules
-  district: 'Western',
+  // No `district` field: it's derived at read time from `township` via
+  // getDistrictForTownship() (src/constants/districts.js), never stored —
+  // the same "compute it, don't duplicate it" rule credit status and dead
+  // stock already follow. A shop's township can never silently disagree
+  // with its district, because there is only one place that fact lives.
   ownerName, phone, viber, address, location: GeoPoint,
 
   priceTier: 'STANDARD' | 'BULK' | 'BULK_PLUS' | 'VIP',

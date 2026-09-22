@@ -11,6 +11,7 @@ import Login from './pages/Login';
 import Placeholder from './pages/Placeholder';
 import Purchasing from './pages/Purchasing';
 import Reports from './pages/Reports';
+import Shops from './pages/Shops';
 import VoucherCreate from './pages/VoucherCreate';
 import VoucherList from './pages/VoucherList';
 
@@ -68,19 +69,7 @@ function AuthedApp() {
         <Route path="/vouchers" element={<VoucherList />} />
         <Route path="/vouchers/new" element={<VoucherCreate />} />
         <Route path="/reports" element={<Reports />} />
-        <Route
-          path="/shops/*"
-          element={
-            <Placeholder
-              title="Shops & townships"
-              scope={[
-                'Shop profile with full purchase history (date, model, colour, qty, amount)',
-                'Township grouping and per-township performance drill-down',
-                'Price tier and credit limit management',
-              ]}
-            />
-          }
-        />
+        <Route path="/shops" element={<Shops />} />
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/purchasing" element={<Purchasing />} />
         <Route path="/logistics" element={<CarStock />} />

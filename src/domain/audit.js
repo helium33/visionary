@@ -35,6 +35,8 @@ export const ACTION_META = {
   USER_ROLE_CHANGE: { label: 'Role changed', tone: 'warning' },
   USER_STATUS_CHANGE: { label: 'Account status changed', tone: 'warning' },
   MASTER_PASSWORD_ROTATE: { label: 'Master password rotated', tone: 'critical' },
+  SHOP_CREATE: { label: 'Shop added', tone: 'neutral' },
+  SHOP_UPDATE: { label: 'Shop details changed', tone: 'warning' },
 };
 
 const ENTITY_LABELS = {
@@ -104,6 +106,12 @@ export function describeAuditEntry(entry) {
       return `${after.active ? 'Reactivated' : 'Deactivated'} ${entry.entityId}`;
     case 'MASTER_PASSWORD_ROTATE':
       return 'Rotated the credit-override master password';
+    case 'SHOP_CREATE':
+      return after.code ? `Added ${after.name ?? entry.entityId} (${after.code})` : `Added shop ${entry.entityId}`;
+    case 'SHOP_UPDATE': {
+      const fields = Object.keys(after ?? {});
+      return fields.length ? `Updated ${entry.entityId} — ${fields.join(', ')}` : `Updated ${entry.entityId}`;
+    }
     default:
       return `${actionMeta(entry?.action).label} on ${entityLabel(entry?.entity)} ${entry?.entityId ?? ''}`.trim();
   }

@@ -180,6 +180,19 @@
   .tnum {
     font-variant-numeric: tabular-nums;
   }
+
+  /* Shared text-input look. Existing forms (Login, RecordPaymentModal, ...)
+     predate this and spell the same classes out inline — left as-is rather
+     than churned in a drive-by refactor; new forms can reach for this one. */
+  .input {
+    @apply w-full rounded-md border border-line-hair bg-surface px-3 py-2 text-sm text-ink outline-none transition;
+  }
+  .input:focus {
+    @apply border-brand-primary ring-2 ring-brand-primary;
+  }
+  .input:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
 }
 
 /* A5 / thermal statement printing: only the print region survives. */

@@ -61,6 +61,20 @@ describe('describeAuditEntry', () => {
     const result = describeAuditEntry(entry({ action: 'SOMETHING_NEW', entity: 'shops', entityId: 'SH-1' }));
     expect(result).toContain('SH-1');
   });
+
+  it('describes a new shop by name and code', () => {
+    const result = describeAuditEntry(
+      entry({ action: 'SHOP_CREATE', entity: 'shops', entityId: 'SH-ABCDE', after: { name: 'Test Optical', township: 'Latha', code: 'SH-ABCDE' } }),
+    );
+    expect(result).toBe('Added Test Optical (SH-ABCDE)');
+  });
+
+  it('describes a shop update by which fields changed', () => {
+    const result = describeAuditEntry(
+      entry({ action: 'SHOP_UPDATE', entity: 'shops', entityId: 'SH-001', after: { priceTier: 'VIP', creditLimit: 5_000_000 } }),
+    );
+    expect(result).toBe('Updated SH-001 — priceTier, creditLimit');
+  });
 });
 
 describe('actionMeta', () => {

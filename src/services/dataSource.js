@@ -8,12 +8,13 @@ import {
   where,
 } from 'firebase/firestore';
 import { COL, db, isDemoMode } from '../lib/firebase';
-import { demoPayments, demoShops, demoVouchers } from '../data/demoData';
+import { demoPayments, demoVouchers } from '../data/demoData';
 import { demoProducts, demoStockLocations } from '../data/demoProducts';
 import { demoExpenses, demoPurchaseOrders, demoSuppliers } from '../data/demoPurchases';
 import { demoCarTrips } from '../data/demoCarTrips';
 import { subscribeDemoUsers } from '../data/demoUsersStore';
 import { subscribeDemoAudit } from '../data/demoAuditStore';
+import { subscribeDemoShops } from '../data/demoShopsStore';
 
 /**
  * One subscription layer for both sources.
@@ -51,8 +52,10 @@ function liveSubscribe(q, cb, onError) {
 
 export function subscribeShops(cb, { salesRepId } = {}, onError) {
   if (isDemoMode) {
-    const rows = salesRepId ? demoShops.filter((s) => s.salesRepId === salesRepId) : demoShops;
-    return demoSubscribe(rows, cb);
+    return subscribeDemoShops((allShops) => {
+      const data = salesRepId ? allShops.filter((s) => s.salesRepId === salesRepId) : allShops;
+      cb({ data, pendingWrites: false, fromCache: false });
+    });
   }
   const clauses = [where('active', '==', true)];
   if (salesRepId) clauses.push(where('salesRepId', '==', salesRepId));
@@ -80,18 +83,27 @@ export function subscribeOpenVouchers(cb, { salesRepId } = {}, onError) {
   );
 }
 
-/** Vouchers issued since `since` — feeds the sales charts. */
-export function subscribeRecentVouchers(cb, { since }, onError) {
+/**
+ * Vouchers issued since `since` — feeds the sales charts and the Shops
+ * module's purchase history. `salesRepId` is required for a SALES-role
+ * caller: firestore.rules only lets a rep read vouchers where
+ * `salesRepId == request.auth.uid`, and an unscoped query the rules can't
+ * prove is restricted is rejected outright rather than silently filtered —
+ * so this is a correctness requirement, not an optimisation, for any screen
+ * a SALES rep can reach (Reports is ADMIN/ACCOUNTANT-only, so it has never
+ * needed this; the Shops module is not, so it always passes its own rep id).
+ */
+export function subscribeRecentVouchers(cb, { since, salesRepId } = {}, onError) {
   if (isDemoMode) {
-    const rows = demoVouchers.filter((v) => new Date(v.issueDate) >= since);
+    const rows = demoVouchers.filter(
+      (v) => new Date(v.issueDate) >= since && (!salesRepId || v.salesRepId === salesRepId),
+    );
     return demoSubscribe(rows, cb);
   }
+  const clauses = [where('issueDate', '>=', since)];
+  if (salesRepId) clauses.push(where('salesRepId', '==', salesRepId));
   return liveSubscribe(
-    query(
-      collection(db, COL.vouchers),
-      where('issueDate', '>=', since),
-      orderBy('issueDate', 'desc'),
-    ),
+    query(collection(db, COL.vouchers), ...clauses, orderBy('issueDate', 'desc')),
     cb,
     onError,
   );

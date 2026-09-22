@@ -24,7 +24,8 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Users & audit** | Complete — role assignment, an append-only audit log, master-password rotation |
 | **Bilingual UI (EN/MM)** | Nav, header, Dashboard, Credit Management and Reports — a language toggle, placeholder Myanmar copy |
 | **Yangon district mapping** | Complete — 4 districts ↔ townships, auto-derived, feeds the district/township charts |
-| **Brand identity & auth** | Complete — Plan B Vision Eyewears mark, brand-primary theme, real Firebase Email/Password sign-in, `<ProtectedRoute>` |
+| **Brand identity & auth** | Complete — Plan B Vision Eyewears mark, brand-primary theme, Firebase Email/Password + Google sign-in, `<ProtectedRoute>` |
+| **Shops & townships** | Complete — directory grouped by township, shop profile with full purchase history, price-tier/credit-limit management |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
 
 ## Running it
@@ -78,7 +79,8 @@ visionary/
     │   ├── carStock.js            Trip reconciliation: stock, cash and debt
     │   ├── permissions.js         Renders the role → capability matrix from one source list
     │   ├── audit.js                Turns raw audit entries into a readable, filterable log
-    │   └── townshipAnalytics.js   District/township/shop rollups for the Reports tab
+    │   ├── townshipAnalytics.js   District/township/shop rollups for the Reports tab
+    │   └── shopPurchaseHistory.js One row per sold line — date, model, colour, qty, amount
     │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
     │   ├── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
     │   ├── barcode.test.js        Symbol encoding against the GS1 worked example
@@ -89,7 +91,8 @@ visionary/
     │   ├── carStock.test.js       Bag arithmetic, cash vs phone, settlement
     │   ├── permissions.test.js    The matrix never invents or drops a capability
     │   ├── audit.test.js          Human-readable descriptions, filtering, sort order
-    │   └── townshipAnalytics.test.js
+    │   ├── townshipAnalytics.test.js
+    │   └── shopPurchaseHistory.test.js
     ├── i18n/                     Hand-rolled EN/MM dictionary — see "Bilingual support" below
     │   ├── dictionary.js           Nested {en, mm} strings, dot-path keys
     │   ├── translate.js            Lookup + {placeholder} interpolation, never throws
@@ -102,11 +105,13 @@ visionary/
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
     │   ├── voucherService.js      Voucher write: one batch for stock, debt and journal
     │   ├── statementService.js    Viber/Telegram message + printable A5 statement
+    │   ├── shopService.js         Create/update a shop; code generation; audit logging
     │   └── auditService.js        Append-only audit trail
     ├── hooks/
     │   ├── useCreditData.js       Streams shops + open vouchers → derived portfolio
     │   ├── useCatalogue.js        Products, with colour variants loaded per model
     │   ├── useSalesAnalytics.js   Township/shop rankings, weekly series
+    │   ├── useShopsData.js        Shops + vouchers → per-shop purchase summaries, by district
     │   ├── useOnlineStatus.js
     │   └── useToday.js            Ticking "today" so ageing rolls over at midnight
     ├── context/
@@ -122,6 +127,7 @@ visionary/
     │   ├── purchasing/            PoTable, landed-cost breakdown, receiving, expenses
     │   ├── reports/               Commission table; TownshipCharts + ShopsTownshipsReport (district/township/top-shop charts)
     │   ├── carstock/              Trip reconciliation panel
+    │   ├── shops/                 ShopFormModal (create/edit), ShopProfilePanel (history + terms)
     │   └── admin/                 Users table, permission matrix, audit log, password rotation
     │   └── layout/                AppShell, SyncBadge, LanguageToggle
     ├── pages/
@@ -133,11 +139,12 @@ visionary/
     │   ├── Purchasing.jsx         Landed cost, receiving, general expenses
     │   ├── Reports.jsx            Net profit bridge, model margins, commissions
     │   ├── CarStock.jsx           Load a bag, count it back in
+    │   ├── Shops.jsx              Directory by township, profile, price tier/credit limit
     │   └── Admin.jsx               Role assignment, the audit log, password rotation
     │   ├── Login.jsx
-    │   └── Placeholder.jsx        Honest stubs for the unbuilt modules
+    │   └── Placeholder.jsx        Honest stub for unmatched routes ("Not found")
     ├── lib/                       firebase.js, constants.js, dates.js, format.js
-    └── data/                      demoData.js (shops, vouchers), demoProducts.js (matrix)
+    └── data/                      demoData.js (shops, vouchers), demoProducts.js (matrix), demoShopsStore.js
 ```
 
 **The one structural rule:** business rules live in `src/domain/` as pure functions of
@@ -416,6 +423,47 @@ always dropping a visitor at `/`.
 collapses those two so a login screen can't be used to enumerate which emails have accounts;
 `loginErrorMessage()` preserves that. `auth/invalid-email` stays specific, since that's a format
 check, not an account lookup.
+
+**Google is a second sign-in method on the same session, not a separate account system.**
+`signInWithPopup(auth, new GoogleAuthProvider())` lands in the exact same `onAuthStateChanged`
+listener `AuthContext.jsx` already had — there was no branch to add for "how did this session get
+signed in." A cancelled popup (`auth/popup-closed-by-user`, `auth/cancelled-popup-request`) shows
+no error at all; declining to continue isn't a mistake to alarm someone over. Google sign-in
+still needs to be turned on for the provider in that Firebase project's console before it will
+succeed for real — the code has nothing further to configure.
+
+## Shops & townships
+
+The shop directory itself, not its analytics — Reports' Shops & townships tab already answers
+"how are districts and townships performing" with charts; this module answers "who is this shop,
+what have they bought, and what are their terms." Building both on the same charts would answer
+the same question twice.
+
+**Purchase history is a rebuild, not a stored list.** `shopPurchaseHistory()`
+(`src/domain/shopPurchaseHistory.js`) flattens a shop's own vouchers into one row per sold line —
+date, model, colour, qty, amount — the moment the profile opens; nothing is cached on the shop
+document. A voided voucher never happened, so it's excluded, the same rule `profit.js` applies to
+revenue; consignment stays in, tagged, since sample stock did leave the warehouse even though it
+isn't revenue yet.
+
+**The shop document's own `stats.lifetimeSales`/`voucherCount` are a query hint, never trusted
+here** — the seeded demo data ships every shop with both at zero, which is exactly the failure
+mode of trusting a cached rollup instead of deriving one. `useShopsData.js` computes real
+per-shop totals from the same voucher window Reports.jsx uses, the "derive, don't duplicate" rule
+this app applies everywhere else.
+
+**Editing follows firestore.rules, not a simpler UI-only guess.** Price tier and credit limit are
+open while *creating* a shop (the rules only fence `credit.override`, and only on update) but
+restricted on an *existing* shop to admin, accountant, or that shop's own rep —
+`lib/constants.js#PERMISSIONS` had no entry for either case before this pass (only
+`shop:read:own`/`shop:create` existed for SALES, nothing for ACCOUNTANT at all), a real gap
+between what the rules already allowed and what the UI could check.
+
+**Township grouping is a grouped list, deliberately not a second Recharts dashboard.** Each shop
+row already carries its derived district from `useShopsData.js`; the district filter and the
+per-township headers use it directly. A phone gets a card list, not a table scrolled sideways —
+the same pattern `CollectionTable.jsx` already uses for the same underlying problem (a list of
+shops, one line of stats each, on a narrow screen).
 
 ---
 

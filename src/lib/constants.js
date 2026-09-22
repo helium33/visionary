@@ -38,6 +38,7 @@ export const PERMISSIONS = {
     'voucher:read:own',
     'shop:read:own',
     'shop:create',
+    'shop:update:own',
     'payment:collect',
     'stock:car',
   ],
@@ -49,6 +50,8 @@ export const PERMISSIONS = {
     'credit:hold',
     'profit:read',
     'expense:write',
+    'shop:read',
+    'shop:update',
   ],
   WAREHOUSE: ['inventory:read', 'inventory:write', 'transfer:create', 'po:read'],
 };
