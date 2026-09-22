@@ -40,6 +40,7 @@ export const dictionary = {
       syncing: 'Syncing…',
       offline: 'Offline — saving locally',
       language: 'Language',
+      logout: 'Logout',
     },
     common: {
       township: 'Township',
@@ -153,6 +154,7 @@ export const dictionary = {
       syncing: 'ထပ်တူညှိနေသည်…',
       offline: 'အော့ဖ်လိုင်း — ဒေသခံသိမ်းနေသည်',
       language: 'ဘာသာစကား',
+      logout: 'ထွက်ရန်',
     },
     common: {
       township: 'မြို့နယ်',

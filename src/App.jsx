@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { useAuth } from './context/AuthContext';
 import { useCreditData } from './hooks/useCreditData';
@@ -14,8 +14,18 @@ import Reports from './pages/Reports';
 import VoucherCreate from './pages/VoucherCreate';
 import VoucherList from './pages/VoucherList';
 
-export default function App() {
+/**
+ * Gates every ERP module behind a signed-in session, and remembers where a
+ * visitor was headed so a bookmarked deep link (e.g. /vouchers/new) survives
+ * the detour through /login instead of always dropping them back at "/".
+ *
+ * Wrapped once around the whole module tree rather than per-route: the
+ * protection can't be forgotten on a route added later, because there is no
+ * second place a route declaration could skip it.
+ */
+function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -25,9 +35,25 @@ export default function App() {
     );
   }
 
-  if (!user) return <Login />;
+  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
-  return <AuthedApp />;
+  return children;
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="/*"
+        element={
+          <ProtectedRoute>
+            <AuthedApp />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
+  );
 }
 
 function AuthedApp() {

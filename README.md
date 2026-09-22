@@ -24,6 +24,7 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Users & audit** | Complete — role assignment, an append-only audit log, master-password rotation |
 | **Bilingual UI (EN/MM)** | Nav, header, Dashboard, Credit Management and Reports — a language toggle, placeholder Myanmar copy |
 | **Yangon district mapping** | Complete — 4 districts ↔ townships, auto-derived, feeds the district/township charts |
+| **Brand identity & auth** | Complete — Plan B Vision Eyewears mark, brand-primary theme, real Firebase Email/Password sign-in, `<ProtectedRoute>` |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
 
 ## Running it
@@ -36,12 +37,14 @@ npm run build
 ```
 
 With no Firebase project configured the app runs in **demo mode** against
-`src/data/demoData.js`, so the UI is reviewable without credentials. The demo master password
-for releasing a locked shop is `0000`, and the sidebar has a role switcher for checking the
-RBAC surface.
+`src/data/demoData.js`, so the UI is reviewable without credentials — `/login` never appears,
+the sidebar has a role switcher for checking the RBAC surface, and its Logout button just resets
+to the first demo user. The demo master password for releasing a locked shop is `0000`.
 
 To point it at a real project: copy `.env.example` to `.env.local`, fill in the Firebase web
-config, set `VITE_DEMO_MODE=false`, then
+config, set `VITE_DEMO_MODE=false`, then create at least one user both in Firebase
+Authentication (email/password) and in Firestore's `users` collection (so the app has a role to
+read for them) before signing in — see `docs/FIRESTORE_SCHEMA.md`'s `users/{uid}` section — then
 
 ```bash
 firebase deploy --only firestore:rules,firestore:indexes
@@ -110,6 +113,7 @@ visionary/
     │   ├── AuthContext.jsx         Auth + role, with a demo-mode role switcher
     │   └── LocaleContext.jsx       Current locale + t(), persisted to localStorage
     ├── components/
+    │   ├── brand/                  BrandLogo — the Plan B Vision Eyewears mark, full + compact
     │   ├── ui/                    Card, Button, Modal, StatTile, StatusPill, Toast
     │   ├── charts/                BarList, AgingBar, TrendChart, shared tooltip, rechartsTheme (CSS-var Recharts theme)
     │   ├── credit/                DueMeter, CollectionTable, the four dialogs, CreditCharts (collected/outstanding donut, debt-ageing bar)
@@ -373,6 +377,45 @@ the new charts rather than filed for later: `Reports.jsx` was fully built and li
 sidebar but had no matching `<Route>` in `App.jsx`, so the link 404'd; and the district charts'
 own X-axis silently dropped two of the four labels on a phone-width screen until Recharts was
 told `interval={0}` and given a compact "North"/"South"/"East"/"West" tick form.
+
+## Brand identity & authentication
+
+The Plan B Vision Eyewears mark is `<BrandLogo/>` (`src/components/brand/BrandLogo.jsx`) —
+Tailwind + inline SVG, not a shipped image: a solid brand-primary card, "PLAN" and "VISION /
+EYEWEARS" either side of a glasses-lens "B" (two stroked circles on a vertical spine, tangent
+where the spine ends, so it reads as one glyph). Two sizes, not one scalable component: the full
+lockup needs real width to read and the login page has it; the existing 56px sidebar header row
+doesn't, so `compact` renders just the glasses-B mark as a small badge, with "Visionary" staying
+beside it as plain text — the same layout the sidebar already had.
+
+The brand colour is its own token, `--brand-primary` (`#577a88` light, a lightened `#6d9db0` in
+dark) — deliberately not reusing `--series-1`, the app's existing chart/focus-ring accent. A
+brand colour and a chart colour answer different questions; collapsing them into one token is how
+a future rebrand quietly changes what a chart means. `Button.jsx`'s `primary` variant now resolves
+through it, so every primary action in the app — Sign in, New voucher, Collect payment — picked up
+the brand colour from one change, with no page-by-page edits.
+
+**Authentication was already real, not a stub to build from scratch.** `AuthContext.jsx` already
+ran `onAuthStateChanged`/`signOut` against Firebase Auth whenever a project is configured
+(`isDemoMode` false), with a demo-mode fallback (a mock roster + role switcher) for review without
+credentials; `Login.jsx` already called `signInWithEmailAndPassword`. What was missing was the
+brand's visual language on that screen, clean per-error-code messages instead of one generic
+string, a visible focus state on the inputs (the old ones had `outline-none` and nothing to
+replace it — a real accessibility gap, fixed here), and a `<ProtectedRoute>` making the gate an
+explicit routing concern rather than one `if (!user)` check at the top of `App()`.
+
+**`ProtectedRoute` wraps the whole module tree once, not each route individually.** Every ERP page
+already lived under one `<AuthedApp/>`; wrapping that once means a route added later can't forget
+the check the way a tenth copy-pasted `<ProtectedRoute><Page/></ProtectedRoute>` line eventually
+would. It redirects to `/login` with the attempted location in router state, and `Login.jsx`
+redirects back to it on success — a deep link like `/vouchers/new` survives the detour instead of
+always dropping a visitor at `/`.
+
+**Firebase Auth error codes are translated, not shown raw**, and deliberately don't distinguish
+"no such account" from "wrong password" — Firebase's own `auth/invalid-credential` already
+collapses those two so a login screen can't be used to enumerate which emails have accounts;
+`loginErrorMessage()` preserves that. `auth/invalid-email` stays specific, since that's a format
+check, not an account lookup.
 
 ---
 

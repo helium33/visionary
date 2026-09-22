@@ -10,6 +10,9 @@ export default {
         plane: 'var(--plane)',
         surface: 'var(--surface-1)',
         raised: 'var(--surface-2)',
+        brand: {
+          primary: 'var(--brand-primary)',
+        },
         ink: {
           DEFAULT: 'var(--text-primary)',
           secondary: 'var(--text-secondary)',

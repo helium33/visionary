@@ -53,6 +53,12 @@
   --wash-serious: rgba(236, 131, 90, 0.16);
   --wash-critical: rgba(208, 59, 59, 0.12);
   --wash-accent: rgba(42, 120, 214, 0.1);
+
+  /* Brand mark — Plan B Vision Eyewears' slate-blue/dusty-teal. Kept apart
+     from --series-1 (the chart/focus-ring accent): a brand colour and a data
+     accent answer different questions, and letting one page double as the
+     other is how a future rebrand ends up silently changing chart meaning. */
+  --brand-primary: #577a88;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -90,6 +96,10 @@
     --wash-serious: rgba(236, 131, 90, 0.18);
     --wash-critical: rgba(208, 59, 59, 0.2);
     --wash-accent: rgba(57, 135, 229, 0.16);
+
+    /* Lightened for contrast against the dark surface, same proportion the
+       other accent colours step up by between the light and dark sets. */
+    --brand-primary: #6d9db0;
   }
 }
 
@@ -127,6 +137,8 @@
   --wash-serious: rgba(236, 131, 90, 0.18);
   --wash-critical: rgba(208, 59, 59, 0.2);
   --wash-accent: rgba(57, 135, 229, 0.16);
+
+  --brand-primary: #6d9db0;
 }
 
 @layer base {

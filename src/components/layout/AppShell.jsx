@@ -4,8 +4,8 @@ import {
   BarChart3,
   Boxes,
   CreditCard,
-  Glasses,
   LayoutDashboard,
+  LogOut,
   Menu,
   Package,
   Receipt,
@@ -17,6 +17,7 @@ import {
 import { ROLE_LABELS } from '../../lib/constants';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
+import { BrandLogo } from '../brand/BrandLogo';
 import { LanguageToggle } from './LanguageToggle';
 import { SyncBadge } from './SyncBadge';
 
@@ -36,7 +37,7 @@ const NAV = [
 ];
 
 export function AppShell({ sync, children }) {
-  const { user, can, isDemoMode, demoUsers, switchDemoUser } = useAuth();
+  const { user, can, isDemoMode, demoUsers, switchDemoUser, logout } = useAuth();
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
 
@@ -55,7 +56,7 @@ export function AppShell({ sync, children }) {
           bg-surface transition-transform lg:translate-x-0 ${open ? 'translate-x-0' : ''}`}
       >
         <div className="flex h-14 items-center gap-2 border-b border-line-hair px-4">
-          <Glasses size={18} className="text-series-1" aria-hidden="true" />
+          <BrandLogo compact />
           <span className="text-sm font-semibold tracking-tight text-ink">Visionary</span>
           <button
             type="button"
@@ -84,7 +85,7 @@ export function AppShell({ sync, children }) {
               className={({ isActive }) =>
                 `flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition ${
                   isActive
-                    ? 'bg-raised font-medium text-ink'
+                    ? 'bg-raised font-medium text-brand-primary'
                     : 'text-ink-secondary hover:bg-raised hover:text-ink'
                 }`
               }
@@ -96,8 +97,22 @@ export function AppShell({ sync, children }) {
         </nav>
 
         <div className="absolute inset-x-0 bottom-0 border-t border-line-hair p-3">
-          <p className="text-xs font-medium text-ink">{user?.name}</p>
-          <p className="text-2xs text-ink-secondary">{ROLE_LABELS[user?.role] ?? user?.role}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-ink">{user?.name}</p>
+              <p className="text-2xs text-ink-secondary">{ROLE_LABELS[user?.role] ?? user?.role}</p>
+            </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-2xs text-ink-secondary transition hover:bg-raised hover:text-status-critical"
+              aria-label={t('header.logout')}
+              title={t('header.logout')}
+            >
+              <LogOut size={13} aria-hidden="true" />
+              {t('header.logout')}
+            </button>
+          </div>
           {isDemoMode ? (
             <select
               aria-label="Switch demo role"
