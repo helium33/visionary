@@ -12,9 +12,9 @@
  * nothing here is designed to resist that.
  *
  * COVERAGE: the sidebar nav, the app header, the Dashboard, Credit
- * Management, and the new Shops & Townships report — the screens the brief
- * named. Every other page keeps its English copy for now; add a namespace
- * here and call `t()` from that page to extend coverage.
+ * Management, the Shops & Townships report, and the Login screen. Every
+ * other page keeps its English copy for now; add a namespace here and call
+ * `t()` from that page to extend coverage.
  *
  * The Myanmar column is placeholder text meant to be replaced by a native
  * speaker — each string is a real, sensible translation, not filler, but the
@@ -134,6 +134,20 @@ export const dictionary = {
       topShopsTitle: 'Top 10 shops',
       topShopsSub: 'By revenue — order count labelled on each bar',
     },
+    login: {
+      title: 'Sign in',
+      subtitle:
+        'The session stays on this device, so the app keeps working in the field with no signal.',
+      email: 'Email',
+      password: 'Password',
+      signIn: 'Sign in',
+      signingIn: 'Signing in…',
+      errorInvalidEmail: 'That doesn’t look like a valid email address.',
+      errorInvalidCredential: 'Email or password is incorrect.',
+      errorUserDisabled: 'This account has been disabled. Contact your administrator.',
+      errorTooManyRequests: 'Too many attempts. Please wait a moment and try again.',
+      errorDefault: 'Something went wrong signing in. Please try again.',
+    },
   },
 
   mm: {
@@ -247,6 +261,20 @@ export const dictionary = {
       selectDistrict: 'ခရိုင်ရွေးချယ်ရန်',
       topShopsTitle: 'ထိပ်တန်းဆိုင် ၁၀ ခု',
       topShopsSub: 'ဝင်ငွေအလိုက် — အော်ဒါအရေအတွက်ကို ဘားတိုင်းတွင် ဖော်ပြထားသည်',
+    },
+    login: {
+      title: 'အကောင့်ဝင်ရောက်ရန်',
+      subtitle:
+        'စက်ရှင်ကို ဤစက်ပေါ်တွင် သိမ်းဆည်းထားမည်ဖြစ်၍ အင်တာနက်မရှိသည့်နေရာများတွင်လည်း အက်ပ်ဆက်လက်အလုပ်လုပ်နိုင်ပါသည်။',
+      email: 'အီးမေးလ်',
+      password: 'စကားဝှက်',
+      signIn: 'ဝင်ရောက်ရန်',
+      signingIn: 'ဝင်ရောက်နေသည်…',
+      errorInvalidEmail: 'ဤသည် မှန်ကန်သော အီးမေးလ်ပုံစံ မဟုတ်ပါ။',
+      errorInvalidCredential: 'အီးမေးလ် သို့မဟုတ် စကားဝှက် မှားယွင်းနေပါသည်။',
+      errorUserDisabled: 'ဤအကောင့်ကို ပိတ်ထားပါသည်။ သင့်စီစဉ်ခန့်ခွဲသူထံ ဆက်သွယ်ပါ။',
+      errorTooManyRequests: 'ကြိုးစားမှုများလွန်းနေပါသည်။ ခဏစောင့်ပြီး ထပ်စမ်းကြည့်ပါ။',
+      errorDefault: 'ဝင်ရောက်ရာတွင် တစ်စုံတစ်ခု မှားယွင်းသွားပါသည်။ ထပ်စမ်းကြည့်ပါ။',
     },
   },
 };

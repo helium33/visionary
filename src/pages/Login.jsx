@@ -5,7 +5,9 @@ import { useForm } from 'react-hook-form';
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { auth } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 import { BrandLogo } from '../components/brand/BrandLogo';
+import { LanguageToggle } from '../components/layout/LanguageToggle';
 import { Button } from '../components/ui/Button';
 
 /**
@@ -16,25 +18,26 @@ import { Button } from '../components/ui/Button';
  * probe which emails have accounts. `auth/invalid-email` is the one case
  * safe to be specific about — it's a format check, not an account lookup.
  */
-function loginErrorMessage(error) {
+function loginErrorMessage(error, t) {
   switch (error?.code) {
     case 'auth/invalid-email':
-      return 'That doesn’t look like a valid email address.';
+      return t('login.errorInvalidEmail');
     case 'auth/invalid-credential':
     case 'auth/wrong-password':
     case 'auth/user-not-found':
-      return 'Email or password is incorrect.';
+      return t('login.errorInvalidCredential');
     case 'auth/user-disabled':
-      return 'This account has been disabled. Contact your administrator.';
+      return t('login.errorUserDisabled');
     case 'auth/too-many-requests':
-      return 'Too many attempts. Please wait a moment and try again.';
+      return t('login.errorTooManyRequests');
     default:
-      return 'Something went wrong signing in. Please try again.';
+      return t('login.errorDefault');
   }
 }
 
 export default function Login() {
   const { user } = useAuth();
+  const { t } = useLocale();
   const location = useLocation();
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -61,14 +64,18 @@ export default function Login() {
       // No further action needed here — AuthContext's onAuthStateChanged
       // picks up the new session and ProtectedRoute re-renders past /login.
     } catch (err) {
-      setError(loginErrorMessage(err));
+      setError(loginErrorMessage(err, t));
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-plane px-4 py-10">
+    <div className="relative flex min-h-screen items-center justify-center bg-plane px-4 py-10">
+      <div className="absolute right-4 top-4">
+        <LanguageToggle />
+      </div>
+
       <div className="w-full max-w-md">
         <div className="mb-6 flex justify-center">
           <BrandLogo />
@@ -80,16 +87,15 @@ export default function Login() {
           className="card w-full space-y-4 p-6 sm:p-8"
         >
           <div>
-            <h1 className="text-lg font-semibold text-ink">Sign in</h1>
-            <p className="mt-1 text-xs text-ink-secondary">
-              The session stays on this device, so the app keeps working in the field with no
-              signal.
-            </p>
+            <h1 className="text-lg font-semibold text-ink">{t('login.title')}</h1>
+            <p className="mt-1 text-xs text-ink-secondary">{t('login.subtitle')}</p>
           </div>
 
           <div className="space-y-3">
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink-secondary">Email</span>
+              <span className="mb-1 block text-xs font-medium text-ink-secondary">
+                {t('login.email')}
+              </span>
               <input
                 type="email"
                 autoComplete="username"
@@ -102,7 +108,9 @@ export default function Login() {
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-ink-secondary">Password</span>
+              <span className="mb-1 block text-xs font-medium text-ink-secondary">
+                {t('login.password')}
+              </span>
               <input
                 type="password"
                 autoComplete="current-password"
@@ -135,7 +143,7 @@ export default function Login() {
             onClick={handleSubmit(onSubmit)}
           >
             {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : null}
-            {busy ? 'Signing in…' : 'Sign in'}
+            {busy ? t('login.signingIn') : t('login.signIn')}
           </Button>
         </form>
       </div>
