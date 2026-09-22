@@ -21,8 +21,8 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Purchasing & landed cost** | Complete — PO tracking, charge apportionment, receiving with cost write-back, expenses |
 | **Reports** | Complete — net profit bridge, model profitability, rep commissions |
 | **Car stock** | Complete — load a bag, reconcile stock, cash and debt on return |
+| **Users & audit** | Complete — role assignment, an append-only audit log, master-password rotation |
 | **PWA + offline** | Complete — `persistentLocalCache`, service worker, sync badge |
-| Users & audit | Routed stub; lists its planned scope on screen |
 
 ## Running it
 
@@ -71,6 +71,8 @@ visionary/
     │   ├── profit.js              P&L, the revenue→net bridge, model profitability
     │   ├── commission.js          Rep volume plus the on-time collection bonus
     │   ├── carStock.js            Trip reconciliation: stock, cash and debt
+    │   ├── permissions.js         Renders the role → capability matrix from one source list
+    │   └── audit.js                Turns raw audit entries into a readable, filterable log
     │   ├── credit.test.js         Boundary tests: day 11/12/14/15/22
     │   ├── voucher.test.js        Tier thresholds, bundling, stock, invoice arithmetic
     │   ├── barcode.test.js        Symbol encoding against the GS1 worked example
@@ -78,7 +80,9 @@ visionary/
     │   ├── landedCost.test.js     Apportionment balance, FX, short deliveries
     │   ├── purchasing.test.js     Late shipments, expense windows
     │   ├── profit.test.js         Frozen COGS, the bridge, commission split
-    │   └── carStock.test.js       Bag arithmetic, cash vs phone, settlement
+    │   ├── carStock.test.js       Bag arithmetic, cash vs phone, settlement
+    │   ├── permissions.test.js    The matrix never invents or drops a capability
+    │   └── audit.test.js          Human-readable descriptions, filtering, sort order
     ├── services/                ← Side effects. Everything that writes.
     │   ├── dataSource.js          One subscription layer over Firestore or demo data
     │   ├── creditService.js       Override, payments (batched), holds, credit notes
@@ -101,6 +105,7 @@ visionary/
     │   ├── purchasing/            PoTable, landed-cost breakdown, receiving, expenses
     │   ├── reports/               Commission table with the on-time meter
     │   ├── carstock/              Trip reconciliation panel
+    │   └── admin/                 Users table, permission matrix, audit log, password rotation
     │   └── layout/                AppShell, SyncBadge
     ├── pages/
     │   ├── Dashboard.jsx
@@ -111,6 +116,7 @@ visionary/
     │   ├── Purchasing.jsx         Landed cost, receiving, general expenses
     │   ├── Reports.jsx            Net profit bridge, model margins, commissions
     │   ├── CarStock.jsx           Load a bag, count it back in
+    │   └── Admin.jsx               Role assignment, the audit log, password rotation
     │   ├── Login.jsx
     │   └── Placeholder.jsx        Honest stubs for the unbuilt modules
     ├── lib/                       firebase.js, constants.js, dates.js, format.js
@@ -261,6 +267,34 @@ handed to credit control, where the clock is already running.
 Settling writes the difference as an explicit signed adjustment into the stock journal. A
 shortage is a loss somebody has to account for, so it leaves a record rather than being absorbed
 into a corrected stock figure.
+
+## Users & audit
+
+Two things live here because they are about trust rather than the day-to-day business: who is
+allowed to do what, and a record of what they actually did.
+
+**The permission matrix is rendered, not re-specified.** `src/lib/constants.js#PERMISSIONS` is
+the one list every `can()` check in the app already gates on — this screen only turns it into a
+table grouped by area, one column per role. It grants nothing on its own; editing it would mean
+the screen and the security rules could drift apart, which is exactly the failure mode a
+permission matrix exists to prevent.
+
+**The audit log is not fetched specially.** Every service module in this app already calls
+`logAudit` on the writes that matter — a voucher, a payment, an override, a received PO, a
+settled trip, a role change. This page is the first place that reads those entries back, turns
+them into one-line descriptions, and lets them be filtered by actor, action and date. Nothing
+here can be edited or deleted, not by this screen and not by the security rules (`allow update,
+delete: if false`, admins included) — an audit log an admin can rewrite is not an audit log.
+
+**Rotating the master password requires the current one.** A desk left unlocked should not be
+enough to lock every other admin out of releasing a locked shop — see the note on `settings/config`
+in the schema doc for why the hash itself never reaches the browser either way.
+
+One bug this pass caught by driving the screen in a browser rather than trusting the tests alone:
+the audit log's date filter capped its *upper* bound at `today`, a value that only refreshes at
+midnight (see `useToday`) — so an entry logged seconds after the page loaded was silently
+filtered out until the next calendar day. Fixed by dropping the upper bound entirely: nothing is
+ever dated later than now, so the start of the window is all that needs bounding.
 
 Payments allocate **oldest voucher first**, because the oldest is the one about to trip the
 lock. The allocation is computed by the same pure function that the write uses, so the preview

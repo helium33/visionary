@@ -115,11 +115,10 @@ export function QrSvg({ value, size = 64, margin = 2 }) {
       viewBox={`0 0 ${extent} ${extent}`}
       width={size}
       height={size}
-      style={{ display: 'block', flexShrink: 0 }}
       role="img"
       aria-label={`QR code ${value}`}
       shapeRendering="crispEdges"
-      style={{ display: 'block' }}
+      style={{ display: 'block', flexShrink: 0 }}
     >
       <rect x="0" y="0" width={extent} height={extent} fill="#fff" />
       {modules.cells.map(([x, y]) => (

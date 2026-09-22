@@ -3,6 +3,7 @@ import { AppShell } from './components/layout/AppShell';
 import { useAuth } from './context/AuthContext';
 import { useCreditData } from './hooks/useCreditData';
 import CreditManagement from './pages/CreditManagement';
+import Admin from './pages/Admin';
 import CarStock from './pages/CarStock';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
@@ -56,19 +57,7 @@ function AuthedApp() {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/purchasing" element={<Purchasing />} />
         <Route path="/logistics" element={<CarStock />} />
-        <Route
-          path="/admin/*"
-          element={
-            <Placeholder
-              title="Users & audit"
-              scope={[
-                'Role assignment (Admin, Sales, Accountant, Warehouse) mirrored into auth claims',
-                'Append-only audit log of edited, voided and overridden documents',
-                'Master password rotation for credit overrides',
-              ]}
-            />
-          }
-        />
+        <Route path="/admin" element={<Admin />} />
         <Route path="*" element={<Placeholder title="Not found" />} />
       </Routes>
     </AppShell>

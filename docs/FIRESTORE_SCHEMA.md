@@ -119,6 +119,13 @@ minutes so it cannot leak into next week's orders.
 
 ### `users/{uid}`
 
+The `active` flag is how an account is disabled — a user document is never deleted, the same
+"deactivate instead" convention as shops and everything else with history attached to it. A role
+change or a deactivation writes only this document; the custom auth claim Firestore rules
+actually read is mirrored onto the account by a Cloud Function trigger on this write, never set
+by a client (see §2.4's override for why that separation matters — the same reasoning applies
+here: a signed-in session must never be able to grant itself a claim by writing a document).
+
 ```js
 {
   name: 'Ko Zin Min',
@@ -451,6 +458,12 @@ log an admin can rewrite is not an audit log.
 
 ### `settings/config` *(single document)*
 
+`masterPasswordHash` is rotated by a callable (`rotateMasterPassword`), not by a document write —
+the collection denies client reads and writes outright (`allow read, write: if false`), so
+neither the hash nor the ability to change it ever reaches the browser. Rotating it requires the
+*current* password, not just an admin session, so a desk left unlocked cannot be used to lock
+every other admin out.
+
 ```js
 { creditTermDays: 14, approachingDay: 12, graceDays: 0, overrideValidMinutes: 30,
   masterPasswordHash,             // bcrypt — readable by NOBODY; the callable reads it
@@ -495,7 +508,8 @@ screens stay on live vouchers, because a rolled-up figure cannot be aged.
 | Car stock | `stockLocations` type `CAR` + `variants.stock['LOC-CAR-*']` |
 | Trip reconciliation | `carTrips` (took/counted) + `vouchers.locationId` (sold) + `payments.method` (cash vs phone) |
 | Offline | `persistentLocalCache`, device-generated IDs, batched writes, derived status |
-| Audit log | `auditLogs`, create-only |
+| Audit log | `auditLogs`, create-only — every service module writes to it; `src/domain/audit.js` reads it back |
+| Role assignment | `users/{uid}.role`, mirrored into a custom claim server-side |
 
 ---
 

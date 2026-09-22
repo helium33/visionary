@@ -1,5 +1,6 @@
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { COL, db, isDemoMode } from '../lib/firebase';
+import { pushDemoAudit } from '../data/demoAuditStore';
 
 /**
  * Append-only audit trail. Firestore rules allow create but never update or
@@ -24,8 +25,10 @@ export async function logAudit({ actor, action, entity, entityId, before, after,
   };
 
   if (isDemoMode) {
-    console.info('[audit]', entry);
-    return { id: `demo-${Date.now()}`, ...entry };
+    // Pushed into the in-memory store, not just logged, so the Audit log
+    // screen shows this the moment it happens — an audit trail nobody can
+    // watch fill up is not much of an audit trail.
+    return pushDemoAudit(entry);
   }
   const ref = await addDoc(collection(db, COL.auditLogs), entry);
   return { id: ref.id, ...entry };

@@ -1,16 +1,19 @@
 import {
   collection,
   collectionGroup,
+  limit,
   onSnapshot,
   orderBy,
   query,
   where,
 } from 'firebase/firestore';
 import { COL, db, isDemoMode } from '../lib/firebase';
-import { demoPayments, demoShops, demoUsers, demoVouchers } from '../data/demoData';
+import { demoPayments, demoShops, demoVouchers } from '../data/demoData';
 import { demoProducts, demoStockLocations } from '../data/demoProducts';
 import { demoExpenses, demoPurchaseOrders, demoSuppliers } from '../data/demoPurchases';
 import { demoCarTrips } from '../data/demoCarTrips';
+import { subscribeDemoUsers } from '../data/demoUsersStore';
+import { subscribeDemoAudit } from '../data/demoAuditStore';
 
 /**
  * One subscription layer for both sources.
@@ -108,8 +111,29 @@ export function subscribePayments(cb, { since }, onError) {
 }
 
 export function subscribeUsers(cb, onError) {
-  if (isDemoMode) return demoSubscribe(demoUsers, cb);
+  if (isDemoMode) {
+    // Live store, not the static seed array — a role or status edit made on
+    // the Users screen has to reach every subscriber, the sidebar role
+    // switcher included, without a reload.
+    return subscribeDemoUsers((data) => cb({ data, pendingWrites: false, fromCache: false }));
+  }
   return liveSubscribe(collection(db, COL.users), cb, onError);
+}
+
+/**
+ * The audit trail, newest first. Real mode caps it at 500 rows — an
+ * unbounded listener on a collection that only ever grows is exactly the kind
+ * of query that quietly outgrows the offline cache.
+ */
+export function subscribeAuditLogs(cb, onError) {
+  if (isDemoMode) {
+    return subscribeDemoAudit((data) => cb({ data, pendingWrites: false, fromCache: false }));
+  }
+  return liveSubscribe(
+    query(collection(db, COL.auditLogs), orderBy('at', 'desc'), limit(500)),
+    cb,
+    onError,
+  );
 }
 
 /**
