@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:preview": "VITE_STATIC_PREVIEW=true vite build --base ./",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
