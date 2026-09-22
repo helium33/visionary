@@ -532,6 +532,9 @@ shops:     salesRepId ASC, credit.status ASC       ← "my locked shops"
 shops:     township ASC, name ASC
 inventoryMoves: productId ASC, at DESC
 auditLogs: entityId ASC, at DESC
+products:  active ASC, modelNo ASC                 ← the inventory list
+products:  active ASC, category ASC, modelNo ASC   ← … filtered by category
+carTrips:  repId ASC, openedAt DESC                ← a rep's own trips
 
 fieldOverride: variants.colorCode ASC at COLLECTION_GROUP scope   ← the inventory matrix
 ```

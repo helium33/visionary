@@ -148,6 +148,18 @@ service cloud.firestore {
       allow write: if isAdmin() || isWarehouse();
     }
 
+    // A rep's day out with a car bag. Reps open, load and settle their own
+    // trips only (and their queries filter on repId to match); a trip is
+    // never reassigned or deleted — settlement history must survive.
+    match /carTrips/{tripId} {
+      allow read: if isAdmin() || (isSales() && resource.data.repId == request.auth.uid);
+      allow create: if isAdmin()
+        || (isSales() && request.resource.data.repId == request.auth.uid);
+      allow update: if (isAdmin() || (isSales() && resource.data.repId == request.auth.uid))
+        && request.resource.data.repId == resource.data.repId;
+      allow delete: if false;
+    }
+
     // ------------------------------------------------- purchasing & finance
     match /purchaseOrders/{poId} {
       allow read: if isAdmin() || isAccountant() || isWarehouse();
