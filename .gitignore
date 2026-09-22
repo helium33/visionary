@@ -10,3 +10,7 @@ dev-dist
 coverage
 dist-preview
 dist-login-preview
+dist-dashboard
+*-debug.log
+service-account*.json
+.env.local.*

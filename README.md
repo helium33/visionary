@@ -42,14 +42,39 @@ With no Firebase project configured the app runs in **demo mode** against
 the sidebar has a role switcher for checking the RBAC surface, and its Logout button just resets
 to the first demo user. The demo master password for releasing a locked shop is `0000`.
 
-To point it at a real project: copy `.env.example` to `.env.local`, fill in the Firebase web
-config, set `VITE_DEMO_MODE=false`, then create at least one user both in Firebase
-Authentication (email/password) and in Firestore's `users` collection (so the app has a role to
-read for them) before signing in — see `docs/FIRESTORE_SCHEMA.md`'s `users/{uid}` section — then
+### Deploying to Firebase Hosting (real sign-in)
+
+Sign-in only works on a real deployment. A claude.ai Artifact preview blocks every request to
+outside servers, Google's sign-in server included, so it always shows "could not reach the server".
+
+One-time, in the Firebase console for the project in `.firebaserc`:
+1. **Firestore Database** → Create database.
+2. **Authentication → Sign-in method** → enable Email/Password and Google.
+3. **Authentication → Users** → Add user (or skip this and sign in with Google once after deploying).
+4. **Project settings → Service accounts** → Generate new private key, saved as
+   `service-account.json` in the project folder. It's gitignored; it has full admin access, so
+   never share or commit it.
+
+Then, with the web config in `.env.local` and `VITE_DEMO_MODE=false`:
 
 ```bash
-firebase deploy --only firestore:rules,firestore:indexes
+npx firebase login
+npm run deploy                                          # builds, then deploys hosting + rules + indexes
+npm run set-role -- you@example.com ADMIN "Your Name"   # ADMIN | ACCOUNTANT | SALES | WAREHOUSE
 ```
+
+Open `https://<project-id>.firebaseapp.com` rather than `.web.app`: it matches the config's
+`authDomain`, which the Google sign-in redirect fallback needs.
+
+**Every account needs `set-role` before it can see any data.** `firestore.rules` reads the role
+from a custom auth claim, not from the `users/{uid}` document, and the Cloud Function meant to
+copy one to the other isn't built yet. Without the claim, sign-in succeeds but every read is
+denied. `scripts/set-role.mjs` sets the claim and writes `users/{uid}` together. A role changed
+on the Users screen only writes the document, so run `set-role` again after one. A signed-in
+user picks up a new role only after signing out and back in.
+
+`npm run build:preview` makes the static build used for Artifact previews (hash routing,
+relative asset paths, no service worker). Don't deploy that build.
 
 ---
 

@@ -9,6 +9,8 @@
     "build": "vite build",
     "build:preview": "VITE_STATIC_PREVIEW=true vite build --base ./",
     "preview": "vite preview",
+    "deploy": "vite build && firebase deploy",
+    "set-role": "node scripts/set-role.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -26,6 +28,8 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "firebase-admin": "^14.4.0",
+    "firebase-tools": "^15.30.2",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
     "vite": "^6.0.7",
