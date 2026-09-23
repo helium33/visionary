@@ -77,6 +77,23 @@ no role sees a "Waiting for access" screen rather than the app; once `set-role` 
 `npm run build:preview` makes the static build used for Artifact previews (hash routing,
 relative asset paths, no service worker). Don't deploy that build.
 
+### Deploying to Netlify
+
+Netlify only serves the files; sign-in and data still come from the Firebase project.
+
+- **Drag and drop.** Build with the real web config (`npm run build`, with `.env.local` filled in
+  and `VITE_DEMO_MODE=false`), zip the *contents* of `dist/`, and drop the zip on
+  https://app.netlify.com/drop. `public/_redirects` (every route loads the app) and
+  `public/_headers` (build assets cached for a year) travel inside `dist/`.
+- **Connected to GitHub.** Netlify reads `netlify.toml`: build `npm run build`, publish `dist`,
+  Node 22. Add the six `VITE_FIREBASE_*` values under Site configuration → Environment variables;
+  without them the build falls back to demo data.
+
+Then add the site's domain (`<name>.netlify.app`, or your own) in the Firebase console under
+**Authentication → Settings → Authorized domains**, or Google sign-in is refused there. Google
+sign-in opens a popup; the redirect fallback for blocked popups only works reliably on
+`<project-id>.firebaseapp.com`, so allow popups for the Netlify site.
+
 **Deploying from a Claude Code cloud session (or CI).** `firebase login` can't complete there, and
 a key file shouldn't be pasted into a chat. Instead, store the service-account key JSON as the
 environment variable `FIREBASE_SERVICE_ACCOUNT` (for a cloud session: the environment menu in the

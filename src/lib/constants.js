@@ -81,7 +81,7 @@ export const PAYMENT_METHODS = [
 // Viber/Telegram messages. Printed sheets show the address in the reader's
 // language (companyAddress); the brand name stays as written.
 export const COMPANY = {
-  name: 'Plan B',
+  name: 'Plan B Vision Eyewears',
   address: '27th Street, Pabedan, Yangon',
   addressMM: '၂၇ လမ်း၊ ပန်းဘဲတန်းမြို့နယ်၊ ရန်ကုန်',
   phone: '09 777 661 886',
