@@ -5,8 +5,9 @@
 #   FIREBASE_SERVICE_ACCOUNT  (required) the JSON of a service-account key for
 #                             the project, stored as an environment variable
 #                             (in a Claude Code cloud environment: environment
-#                             settings → Edit). Never commit it or paste it
-#                             into a chat.
+#                             settings → Edit, the whole file pasted between
+#                             single quotes; its line breaks can stay). Never
+#                             commit it or paste it into a chat.
 #
 # The key is written to a private temp file for the length of the deploy and
 # removed afterwards, however the script exits. The web config the build needs
@@ -25,6 +26,14 @@ PROJECT="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('
 if [ -z "${FIREBASE_SERVICE_ACCOUNT:-}" ]; then
   echo "FIREBASE_SERVICE_ACCOUNT is not set." >&2
   echo "Add the service-account key JSON as that environment variable, then start a new session." >&2
+  exit 1
+fi
+
+# Catch a mangled paste before spending a build on it. The value is never printed.
+if ! node -e 'const k = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT); process.exit(k.private_key && k.client_email ? 0 : 1)' 2>/dev/null; then
+  echo "FIREBASE_SERVICE_ACCOUNT is set but is not a service-account key." >&2
+  echo "In the environment settings, paste the whole key file between single quotes:" >&2
+  echo "  FIREBASE_SERVICE_ACCOUNT='{ ...the file as downloaded... }'" >&2
   exit 1
 fi
 

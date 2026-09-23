@@ -97,7 +97,18 @@ sign-in opens a popup; the redirect fallback for blocked popups only works relia
 **Deploying from a Claude Code cloud session (or CI).** `firebase login` can't complete there, and
 a key file shouldn't be pasted into a chat. Instead, store the service-account key JSON as the
 environment variable `FIREBASE_SERVICE_ACCOUNT` (for a cloud session: the environment menu in the
-session's title bar → Edit), start a new session, and run:
+session's title bar → Edit). The settings accept a quoted value that spans lines, so paste the
+downloaded file unchanged between single quotes (single, because the JSON is full of double
+quotes):
+
+```text
+FIREBASE_SERVICE_ACCOUNT='{
+  "type": "service_account",
+  …the rest of the downloaded file, unchanged…
+}'
+```
+
+Then start a new session and run:
 
 ```bash
 npm run deploy:hosting                             # builds against the real database, deploys hosting
