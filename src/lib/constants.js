@@ -77,10 +77,17 @@ export const PAYMENT_METHODS = [
   { key: 'CHEQUE', label: 'Cheque' },
 ];
 
+// The letterhead on printed vouchers and statements, and the sign-off on
+// Viber/Telegram messages. Printed sheets show the address in the reader's
+// language (companyAddress); the brand name stays as written.
 export const COMPANY = {
-  name: 'Visionary Optical Wholesale',
-  nameMM: 'ဗီဇင်နရီ မျက်မှန်လက်ကား',
-  address: 'No. 142, 29th Street (Upper Block), Pabedan, Yangon',
-  phone: '09-7700-11223',
-  viber: '09-7700-11223',
+  name: 'Plan B',
+  address: '27th Street, Pabedan, Yangon',
+  addressMM: '၂၇ လမ်း၊ ပန်းဘဲတန်းမြို့နယ်၊ ရန်ကုန်',
+  phone: '09 777 661 886',
+  viber: '09 777 661 886',
 };
+
+export function companyAddress(locale) {
+  return locale === 'mm' && COMPANY.addressMM ? COMPANY.addressMM : COMPANY.address;
+}

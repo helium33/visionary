@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Copy, Printer, Send } from 'lucide-react';
 import { useLocale } from '../../context/LocaleContext';
 import { buildVoucherText, copyText, nativeShare, shareTo } from '../../services/statementService';
-import { COMPANY } from '../../lib/constants';
+import { COMPANY, companyAddress } from '../../lib/constants';
 import { townshipLabel } from '../../constants/districts';
 import { fmtDate } from '../../lib/dates';
 import { fmtMMK } from '../../lib/format';
@@ -146,11 +146,13 @@ function VoucherSheet({ voucher, shop, compact }) {
         <p style={{ margin: 0, fontSize: compact ? '11pt' : '14pt', fontWeight: 700 }}>
           {COMPANY.name}
         </p>
-        <p className="mm" style={{ margin: 0, fontSize: compact ? '8pt' : '9pt' }}>
-          {COMPANY.nameMM}
-        </p>
+        {COMPANY.nameMM ? (
+          <p className="mm" style={{ margin: 0, fontSize: compact ? '8pt' : '9pt' }}>
+            {COMPANY.nameMM}
+          </p>
+        ) : null}
         <p style={{ margin: '2px 0 0', fontSize: compact ? '7.5pt' : '9pt' }}>
-          {COMPANY.address} · {COMPANY.phone}
+          {companyAddress(locale)} · {COMPANY.phone}
         </p>
       </div>
 

@@ -7,7 +7,7 @@ import {
   nativeShare,
   shareTo,
 } from '../../services/statementService';
-import { COMPANY } from '../../lib/constants';
+import { COMPANY, companyAddress } from '../../lib/constants';
 import { townshipLabel } from '../../constants/districts';
 import { useLocale } from '../../context/LocaleContext';
 import { fmtDate } from '../../lib/dates';
@@ -135,7 +135,7 @@ function PrintableStatement({ shop, state }) {
       <div style={{ padding: '14mm', fontSize: '11pt', color: '#000' }}>
         <h1 style={{ fontSize: '14pt', margin: 0 }}>{COMPANY.name}</h1>
         <p style={{ margin: '2px 0 0', fontSize: '9pt' }}>
-          {COMPANY.address} · {COMPANY.phone}
+          {companyAddress(locale)} · {COMPANY.phone}
         </p>
         <hr style={{ margin: '10px 0', border: 0, borderTop: '1px solid #000' }} />
 
