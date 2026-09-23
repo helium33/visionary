@@ -77,6 +77,20 @@ no role sees a "Waiting for access" screen rather than the app; once `set-role` 
 `npm run build:preview` makes the static build used for Artifact previews (hash routing,
 relative asset paths, no service worker). Don't deploy that build.
 
+**Deploying from a Claude Code cloud session (or CI).** `firebase login` can't complete there, and
+a key file shouldn't be pasted into a chat. Instead, store the service-account key JSON as the
+environment variable `FIREBASE_SERVICE_ACCOUNT` (for a cloud session: the environment menu in the
+session's title bar → Edit), start a new session, and run:
+
+```bash
+npm run deploy:hosting                             # builds against the real database, deploys hosting
+npm run deploy:hosting -- firestore:rules,hosting  # rules too, when they change
+```
+
+`scripts/deploy-hosting.sh` writes the key to a private temp file only for the deploy and deletes
+it afterwards. A fresh clone has no `.env.local`, so the script fetches the web config from
+Firebase with the same key; nothing else needs setting up.
+
 ---
 
 ## Folder structure

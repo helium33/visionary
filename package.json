@@ -10,6 +10,7 @@
     "build:preview": "VITE_STATIC_PREVIEW=true vite build --base ./",
     "preview": "vite preview",
     "deploy": "vite build && firebase deploy",
+    "deploy:hosting": "bash scripts/deploy-hosting.sh",
     "set-role": "node scripts/set-role.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
