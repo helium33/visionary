@@ -9,12 +9,13 @@ import {
 } from 'firebase/firestore';
 import { COL, db, isDemoMode } from '../lib/firebase';
 import { demoPayments, demoVouchers } from '../data/demoData';
-import { demoProducts, demoStockLocations } from '../data/demoProducts';
+import { demoStockLocations } from '../data/demoProducts';
 import { demoExpenses, demoPurchaseOrders, demoSuppliers } from '../data/demoPurchases';
 import { demoCarTrips } from '../data/demoCarTrips';
 import { subscribeDemoUsers } from '../data/demoUsersStore';
 import { subscribeDemoAudit } from '../data/demoAuditStore';
 import { subscribeDemoShops } from '../data/demoShopsStore';
+import { subscribeDemoProducts } from '../data/demoProductsStore';
 import { sortRows } from '../lib/sortRows';
 
 /**
@@ -176,10 +177,13 @@ export function subscribeAuditLogs(cb, onError) {
  */
 export function subscribeProducts(cb, { category } = {}, onError) {
   if (isDemoMode) {
-    const rows = demoProducts
-      .filter((p) => (category ? p.category === category : true))
-      .map(({ variants, ...product }) => product);
-    return demoSubscribe(rows, cb);
+    return subscribeDemoProducts((all) => {
+      const data = all
+        .filter((p) => (category ? p.category === category : true))
+        .map(({ variants, ...product }) => product)
+        .sort((a, b) => a.modelNo.localeCompare(b.modelNo));
+      cb({ data, pendingWrites: false, fromCache: false });
+    });
   }
   const clauses = [where('active', '==', true)];
   if (category) clauses.push(where('category', '==', category));
@@ -193,8 +197,10 @@ export function subscribeProducts(cb, { category } = {}, onError) {
 /** The colour row for one model — what Grid Fast Entry renders. */
 export function subscribeVariants(productId, cb, onError) {
   if (isDemoMode) {
-    const product = demoProducts.find((p) => p.id === productId);
-    return demoSubscribe(product?.variants ?? [], cb);
+    return subscribeDemoProducts((all) => {
+      const product = all.find((p) => p.id === productId);
+      cb({ data: product?.variants ?? [], pendingWrites: false, fromCache: false });
+    });
   }
   return liveSubscribe(
     query(collection(db, COL.products, productId, COL.variants), orderBy('colorCode', 'asc')),
@@ -218,10 +224,12 @@ export function subscribeVariants(productId, cb, onError) {
  */
 export function subscribeAllVariants(cb, onError) {
   if (isDemoMode) {
-    const rows = demoProducts.flatMap((product) =>
-      (product.variants ?? []).map((variant) => ({ ...variant, productId: product.id })),
-    );
-    return demoSubscribe(rows, cb);
+    return subscribeDemoProducts((all) => {
+      const data = all.flatMap((product) =>
+        (product.variants ?? []).map((variant) => ({ ...variant, productId: product.id })),
+      );
+      cb({ data, pendingWrites: false, fromCache: false });
+    });
   }
   // No orderBy: ordering a collection-group query needs its own
   // collection-group index, and the whole matrix is read anyway.

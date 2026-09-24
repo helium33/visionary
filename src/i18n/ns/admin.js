@@ -108,6 +108,7 @@ export const admin = {
       MASTER_PASSWORD_ROTATE: 'Master password rotated',
       SHOP_CREATE: 'Shop added',
       SHOP_UPDATE: 'Shop details changed',
+      STOCK_IMPORT: 'Stock imported',
       unknown: 'Unknown action',
     },
     entity: {
@@ -118,6 +119,7 @@ export const admin = {
       purchaseOrders: 'purchase order',
       expenses: 'expense',
       carTrips: 'car trip',
+      products: 'products',
       users: 'user',
       settings: 'settings',
       record: 'record',
@@ -166,6 +168,8 @@ export const admin = {
       shopAdded: 'Added shop {id}',
       shopUpdatedFields: 'Updated {id} — {fields}',
       shopUpdated: 'Updated {id}',
+      stockImported: 'Imported {models} models, {pieces} pcs, from {file}',
+      stockImportedPlain: 'Imported stock',
       generic: '{action} on {entity} {id}',
     },
 
@@ -300,6 +304,7 @@ export const admin = {
       MASTER_PASSWORD_ROTATE: 'မာစတာစကားဝှက် ပြောင်းပြီး',
       SHOP_CREATE: 'ဆိုင် ထည့်ပြီး',
       SHOP_UPDATE: 'ဆိုင် အချက်အလက် ပြောင်းပြီး',
+      STOCK_IMPORT: 'ကုန်လက်ကျန် ထည့်သွင်းပြီး',
       unknown: 'မသိသော လုပ်ဆောင်ချက်',
     },
     entity: {
@@ -310,6 +315,7 @@ export const admin = {
       purchaseOrders: 'အဝယ်အော်ဒါ',
       expenses: 'အသုံးစရိတ်',
       carTrips: 'ကားခရီးစဉ်',
+      products: 'ကုန်ပစ္စည်း',
       users: 'အသုံးပြုသူ',
       settings: 'ဆက်တင်',
       record: 'မှတ်တမ်း',
@@ -358,6 +364,8 @@ export const admin = {
       shopAdded: 'ဆိုင် {id} ကို ထည့်ပြီး',
       shopUpdatedFields: '{id} ကို ပြင်ပြီး — {fields}',
       shopUpdated: '{id} ကို ပြင်ပြီး',
+      stockImported: '{file} မှ မော်ဒယ် {models} မျိုး၊ {pieces} ခု ထည့်သွင်းပြီး',
+      stockImportedPlain: 'ကုန်လက်ကျန် ထည့်သွင်းပြီး',
       generic: '{entity} {id} — {action}',
     },
 

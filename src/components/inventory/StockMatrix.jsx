@@ -89,7 +89,7 @@ function ColourGrid({ row, locationId, selected, onSelectVariant, onSelectModel 
       </ul>
 
       <p className="mt-2 text-2xs text-ink-muted">
-        {t('inventory.barcodesLine', {
+        {t(row.unitCost ? 'inventory.barcodesLine' : 'inventory.barcodesLineNoCost', {
           barcode: row.variants[0]?.barcode ?? '—',
           cost: fmtMMK(row.unitCost),
           price: fmtMMK(row.unitPrice),
@@ -148,7 +148,7 @@ export function StockMatrix({
                       {row.product.modelNo}
                     </span>
                     <span className="block text-2xs text-ink-secondary">
-                      {productAttributes(row.product, t, { gender: false })}
+                      {productAttributes(row.product, t, { brand: true, gender: false })}
                     </span>
                   </span>
                 </button>
@@ -175,7 +175,7 @@ export function StockMatrix({
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="text-xs tabular-nums text-ink-secondary">
-                    K {fmtMMK(row.costValue, { compact: true })}
+                    {row.unitCost ? `K ${fmtMMK(row.costValue, { compact: true })}` : '—'}
                   </span>
                   <Button size="sm" variant="quiet" icon={Tag} onClick={() => onPrintModel(row)}>
                     {t('inventory.print')}
@@ -238,7 +238,7 @@ export function StockMatrix({
                 </td>
 
                 <td className="whitespace-nowrap px-3 py-2.5 text-2xs text-ink-secondary">
-                  {productAttributes(product, t)}
+                  {productAttributes(product, t, { brand: true })}
                 </td>
 
                 <td className="px-3 py-2.5 text-right tabular-nums text-ink-secondary">
@@ -256,7 +256,8 @@ export function StockMatrix({
                 </td>
 
                 <td className="px-3 py-2.5 text-right tabular-nums text-ink-secondary">
-                  {fmtMMK(row.costValue)}
+                  {/* No cost on record (an imported model) reads as unknown, not as free. */}
+                  {row.unitCost ? fmtMMK(row.costValue) : '—'}
                 </td>
 
                 <td className="whitespace-nowrap px-3 py-2.5">

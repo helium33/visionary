@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Boxes, Coins, PackageX, Search, Skull, Tag, Warehouse } from 'lucide-react';
+import { Boxes, Coins, FileUp, PackageX, Search, Skull, Tag, Warehouse } from 'lucide-react';
 import { DEAD_STOCK_DAYS, STOCK_BANDS, assessInventory } from '../domain/inventory';
 import { subscribeStockLocations } from '../services/dataSource';
 import { fmtMMK } from '../lib/format';
+import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { useCatalogue } from '../hooks/useCatalogue';
 import { useToday } from '../hooks/useToday';
 import { StackedBar } from '../components/charts/StackedBar';
 import { DeadStockTable, LowStockTable } from '../components/inventory/AlertTables';
 import { LabelPrintModal } from '../components/inventory/LabelPrintModal';
+import { StockImportModal } from '../components/inventory/StockImportModal';
 import { StockMatrix } from '../components/inventory/StockMatrix';
 import { Card, CardBody, CardHeader } from '../components/ui/Card';
-import { SkeletonRows } from '../components/ui/EmptyState';
+import { EmptyState, SkeletonRows } from '../components/ui/EmptyState';
 import { StatTile } from '../components/ui/StatTile';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/layout/AppShell';
@@ -40,6 +42,8 @@ const TABS = [
 export default function Inventory() {
   const today = useToday();
   const { t } = useLocale();
+  const { can } = useAuth();
+  const canImport = can('inventory:write');
   // Inventory sums across every colour, so it takes the whole matrix rather
   // than loading variants a model at a time.
   const { products, ensureVariants, loading } = useCatalogue({ allVariants: true });
@@ -50,6 +54,7 @@ export default function Inventory() {
   const [expandedId, setExpandedId] = useState(null);
   const [selected, setSelected] = useState([]);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => subscribeStockLocations(({ data }) => setLocations(data)), []);
 
@@ -71,6 +76,7 @@ export default function Inventory() {
       (row) =>
         row.product.modelNo.toLowerCase().includes(term) ||
         (row.product.brand ?? '').toLowerCase().includes(term) ||
+        (row.product.line ?? '').toLowerCase().includes(term) ||
         (row.product.material ?? '').toLowerCase().includes(term),
     );
   }, [assessment.rows, search]);
@@ -138,6 +144,11 @@ export default function Inventory() {
                 </option>
               ))}
             </select>
+            {canImport ? (
+              <Button icon={FileUp} onClick={() => setImportOpen(true)}>
+                {t('inventory.import.open')}
+              </Button>
+            ) : null}
             <Button
               variant={selected.length ? 'primary' : 'secondary'}
               icon={Tag}
@@ -254,6 +265,20 @@ export default function Inventory() {
 
           {loading ? (
             <SkeletonRows rows={6} />
+          ) : !assessment.rows.length ? (
+            // A new system has no frames yet; say where they come from.
+            <EmptyState
+              icon={Boxes}
+              title={t('inventory.import.emptyTitle')}
+              description={t(canImport ? 'inventory.import.emptyHint' : 'inventory.import.emptyHintReadOnly')}
+              action={
+                canImport ? (
+                  <Button variant="primary" icon={FileUp} onClick={() => setImportOpen(true)}>
+                    {t('inventory.import.open')}
+                  </Button>
+                ) : null
+              }
+            />
           ) : tab === 'STOCK' ? (
             <StockMatrix
               rows={filtered}
@@ -276,6 +301,14 @@ export default function Inventory() {
           )}
         </Card>
       </div>
+
+      <StockImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        products={products}
+        locations={locations}
+        defaultLocationId={locationId}
+      />
 
       <LabelPrintModal
         open={labelsOpen}

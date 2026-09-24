@@ -17,7 +17,7 @@ React (Vite) · Tailwind · Firebase Firestore + Auth · PWA.
 | **Credit control dashboard** | Complete — ageing, worklist, FIFO payments, master-password release, statements |
 | **Main dashboard** | Complete — receivables, township/shop rankings, sales vs collections |
 | **Grid fast entry + vouchers** | Complete — matrix entry, tiered pricing, auto-bundling, credit gate, A4/A5/thermal print, chat share |
-| **Inventory** | Complete — stock matrix, EAN-13/QR label printing, dead-stock and low-stock reports |
+| **Inventory** | Complete — stock matrix, EAN-13/QR label printing, dead-stock and low-stock reports, **CSV stock import** |
 | **Purchasing & landed cost** | Complete — PO tracking, charge apportionment, receiving with cost write-back, expenses |
 | **Reports** | Complete — net profit bridge, model profitability, rep commissions, **+ Shops & townships analytics** |
 | **Car stock** | Complete — load a bag, reconcile stock, cash and debt on return |
@@ -289,6 +289,31 @@ to discover at a shop counter. The encoder is tested against the GS1 worked exam
 the printer rasterises them at its own resolution — sharp at 203dpi on a thermal head and at
 600dpi on an office laser — and are sized in millimetres, because label stock is sold in
 millimetres and pixel sizing would misalign every sticker on the sheet.
+
+### Importing opening stock (CSV)
+
+**Inventory → Import stock** (Admin and Warehouse) reads the frame list exported from the old
+system — `Frame Code`, `Item Name`, `Category`, `C Numbers` (`"C1:3, C2:9"`), `Remaining Qty`,
+`Price (MMK)`; an optional `Cost` column is used when present. Parsing is pure
+(`src/domain/stockImport.js`, tested); writing is `src/services/stockImportService.js`.
+
+- **Nothing is written until the preview is read.** It shows the models, colours, pieces and list
+  value that will go in, and why anything else will not.
+- **Repeated rows merge.** The same code + brand + lens size on several rows is one model, its
+  colours added together. One code under two brands stays two models.
+- **Slips are held back, not imported.** A price under K 1,000 or a colour count over 1,000 has to
+  be corrected in the preview; a model with no colour breakdown needs an explicit yes.
+- **Re-running is safe.** Product ids are a hash of code + brand + size, and models already in the
+  app are skipped, so importing the same file twice cannot double the stock.
+- **What gets written:** `products/{id}` (the file's price as `STANDARD`, the other tiers from
+  `PRICE_TIERS`; `costing.actualCost: null` when the file has no cost), one `variants/{colorCode}`
+  per colour with its count at the chosen location, and an `OPENING` entry in `inventoryMoves` per
+  colour — so opening stock is in the journal like every later movement. The receiving location
+  (`LOC-MAIN`, "Office — main stock") is created if the database has none yet.
+- **Barcodes** for imported colours use GS1's in-store prefix `20`, numbered after the highest
+  one already issued, so a later import never reuses a number printed on a label.
+- Models go in Firestore batches of about 400 writes, a model never split across two; if the
+  connection drops, the models written are whole and a second run adds the rest.
 
 ## Landed cost
 

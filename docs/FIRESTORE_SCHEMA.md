@@ -312,7 +312,14 @@ half-applied.
   colorCount: 5,                  // denormalised for grid rendering
   totalStock: 148,                // denormalised sum of variants
   lastSoldAt: Timestamp,          // powers the dead-stock (>3 months) report
-  active: true
+  active: true,
+
+  // Set on models created by a CSV stock import (Inventory → Import stock):
+  line: 'Soulmate သံ',            // the old system's category, as written; null for plain "Eyeglasses"
+  source: { type: 'IMPORT', file, rows: [154, 155] },   // spreadsheet rows it came from
+  importedAt, importedBy
+  // An imported model has costing.actualCost: null until a cost is recorded —
+  // unknown, which the inventory screens show as "—", never as K 0.
 }
 
 // products/{productId}/variants/{colorCode}
@@ -358,11 +365,11 @@ only covers `COLLECTION` scope.
 
 ```js
 {
-  at, type: 'PO_RECEIPT'|'SALE'|'RETURN'|'TRANSFER'|'ADJUSTMENT'|'DAMAGE'|'CONSIGNMENT',
+  at, type: 'PO_RECEIPT'|'SALE'|'RETURN'|'TRANSFER'|'ADJUSTMENT'|'DAMAGE'|'CONSIGNMENT'|'OPENING',
   productId, modelNo, colorCode,
   qty: -10,                       // signed
   fromLocationId, toLocationId,
-  refType: 'VOUCHER'|'PO'|'TRANSFER'|'COUNT', refId, refNo,
+  refType: 'VOUCHER'|'PO'|'TRANSFER'|'COUNT'|'IMPORT', refId, refNo,   // IMPORT: refNo = file name
   byUserId, note
 }
 ```

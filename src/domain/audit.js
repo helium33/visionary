@@ -43,6 +43,7 @@ export const ACTION_META = {
   MASTER_PASSWORD_ROTATE: { tone: 'critical' },
   SHOP_CREATE: { tone: 'neutral' },
   SHOP_UPDATE: { tone: 'warning' },
+  STOCK_IMPORT: { tone: 'good' },
 };
 
 export function actionMeta(action, t = english) {
@@ -120,6 +121,10 @@ export function describeAuditEntry(entry, t = english) {
         ? d('shopUpdatedFields', { id, fields: fields.join(', ') })
         : d('shopUpdated', { id });
     }
+    case 'STOCK_IMPORT':
+      return after.pieces != null
+        ? d('stockImported', { models: after.models, pieces: after.pieces, file: id ?? '' })
+        : d('stockImportedPlain');
     default:
       return d('generic', {
         action: actionMeta(entry?.action, t).label,

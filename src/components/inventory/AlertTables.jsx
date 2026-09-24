@@ -54,7 +54,7 @@ export function DeadStockTable({ rows, onPrintModel }) {
                     {row.product.modelNo}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5 text-2xs text-ink-secondary">
-                    {productAttributes(row.product, t, { gender: false })}
+                    {productAttributes(row.product, t, { brand: true, gender: false })}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     <StatusPill tone={meta.tone} label={t(`inventory.band.${meta.key}`)} size="sm" />
@@ -67,7 +67,7 @@ export function DeadStockTable({ rows, onPrintModel }) {
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-ink">{row.units}</td>
                   <td className="px-3 py-2.5 text-right font-medium tabular-nums text-status-critical">
-                    {fmtMMK(row.costValue)}
+                    {row.unitCost ? fmtMMK(row.costValue) : '—'}
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <Button size="sm" variant="quiet" icon={Tag} onClick={() => onPrintModel(row)}>

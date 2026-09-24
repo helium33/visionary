@@ -150,7 +150,11 @@
     margin: 0;
     background: var(--plane);
     color: var(--text-primary);
-    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* Noto Sans Myanmar first even in English: the business's own data (brand
+       lines like "Soulmate သံ", colour names like "Cအမဲ") is Burmese whatever the
+       interface language. The bundled subset has no Latin letters or digits,
+       so English text still renders in the system font. */
+    font-family: 'Noto Sans Myanmar', system-ui, -apple-system, 'Segoe UI', 'Myanmar Text', 'Padauk', sans-serif;
     font-size: 14px;
   }
 
