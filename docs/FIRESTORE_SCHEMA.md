@@ -593,3 +593,59 @@ settings      read: admin only    masterPasswordHash: read: false for everyone
 ```
 
 Full implementation in `firestore.rules`.
+
+---
+
+## 8. The Plan B web app on the same database
+
+The customer and sales-rep web app (helium33/plan-b) reads and writes this database directly.
+It adds one role, three kinds of document, and nothing that changes how the POS reads its own.
+
+### The `SHOP` role
+
+A customer account: custom claims `{ role: 'SHOP', shopId }`, set with
+`npm run set-role -- <email> SHOP <shopId>`. It may read its own `shops/{shopId}`, that shop's
+`ledger`, its own `vouchers` and `creditNotes`, and the `variants` stock matrix. It may **not**
+read `products` — they carry landed cost — which is why `products`, `inventoryMoves` and
+`stockLocations` are now readable by staff roles only rather than by any signed-in account.
+The POS shows a SHOP account the "Waiting for access" screen.
+
+### Web orders
+
+`handlePurchase` in the web app writes, in one `writeBatch`, exactly what `createVoucher` writes:
+the voucher, a `stock.LOC-MAIN` decrement and an `inventoryMoves` line per colour, the shop's
+`credit.outstanding` increment and a `ledger` line. The voucher carries `channel: 'WEB'` and
+differs in three fields:
+
+| Field | Value | Why |
+|---|---|---|
+| `items[].unitCost` | `null` | A shop's device never reads cost. `lineCost()` falls back to the product's current cost and flags it `costEstimated`. |
+| `bundlesPending` | `true` | Auto-bundling needs the product document. The warehouse moves the case and cloth when it packs. |
+| `discountReason` | `'LOYALTY_ON_TIME'` or `null` | The 2% on-time-payment coupon — the only discount a shop's own order may carry. |
+
+The rules re-check what matters against the post-batch state: stock may only go down and never
+below zero, the shop's balance must rise by exactly the voucher's `balanceDue` and stay within
+`creditLimit`, and every decrement must name (`variants.lastSaleRef`, `shops.credit.lastWebVoucherId`)
+a voucher for the same shop created in the same batch. Line prices cannot be checked in rules;
+that remains the job of `onVoucherWrite`.
+
+### Defective returns
+
+`processReturn` (sales rep of the shop, or admin) writes a `creditNotes` document
+(`reason: 'RETURN_DEFECTIVE'`) allocated source-voucher-first then FIFO, lowers those vouchers'
+`balanceDue`, records `returnedQty` on the source voucher, moves the pieces into
+`stock.LOC-DAMAGED` with an `inventoryMoves` line of type `RETURN`, and writes one
+`damaged_stock/{id}` record per line:
+
+```js
+{ productId, modelNo, colorCode, colorName, qty, locationId: 'LOC-DAMAGED',
+  reason: 'RETURN_DEFECTIVE', defectNote, creditValue,
+  shopId, shopName, salesRepId, sourceVoucherId, sourceVoucherNo, creditNoteId, creditNoteNo,
+  status: 'PENDING_INSPECTION',     // the warehouse moves it on; never deleted
+  reportedBy, reportedByName, reportedAt, clientAt, channel: 'WEB' }
+```
+
+### `posLinks/{frameId}`
+
+`{ productId, frameCode, linkedAt }` — which POS product a web-catalogue frame is. Written by an
+admin from the web app's frames page; holds no cost, so a shop can read it to place an order.

@@ -1,38 +1,71 @@
 rules_version = '2';
 
-// Visionary — wholesale eyewear ERP.
-// Role comes from a custom auth claim (mirrored from users/{uid}.role by a
-// Cloud Function), never from a document read: reading the role on every rule
-// evaluation would cost a document read per operation and can be stale in the
-// offline cache.
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SHARED RULESET — keep byte-identical in BOTH repositories:              ║
+// ║    helium33/visionary  (the POS / ERP)                                   ║
+// ║    helium33/plan-b     (the customer & sales-rep web app)                ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+//
+// Both apps read and write ONE Firestore database. Firestore has exactly one
+// ruleset per database, and `firebase deploy --only firestore:rules` from
+// either repo REPLACES it wholesale. So this file must describe both apps: a
+// POS-only ruleset deployed from visionary would lock the web app out of its
+// catalogue, and a web-only ruleset deployed from plan-b would lock every rep
+// out of the POS. Edit it in one repo, copy it to the other, deploy once.
+//
+// Role comes from a custom auth claim (mirrored from users/{uid}.role by the
+// POS's `npm run set-role`), never from a document read: reading the role on
+// every rule evaluation would cost a document read per operation and can be
+// stale in the offline cache. Claims used:
+//
+//   role    'ADMIN' | 'SALES' | 'ACCOUNTANT' | 'WAREHOUSE'   POS staff
+//           'SHOP'                                          a customer account
+//   shopId  the shops/{id} a SHOP account belongs to
+//
+// The web app's catalogue admins keep their own allowlist (the bootstrap
+// emails and admins/{uid}); that grants the catalogue only, never POS data.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ================================================================ helpers
 
     function signedIn() {
       return request.auth != null;
     }
 
+    // `.get()` rather than `.role`: a token with no claim at all must read as
+    // "no role", not as an evaluation error.
     function role() {
-      return request.auth.token.role;
+      return request.auth.token.get('role', '');
     }
 
     function isAdmin()      { return signedIn() && role() == 'ADMIN'; }
     function isAccountant() { return signedIn() && role() == 'ACCOUNTANT'; }
     function isSales()      { return signedIn() && role() == 'SALES'; }
     function isWarehouse()  { return signedIn() && role() == 'WAREHOUSE'; }
+    function isStaff()      { return isAdmin() || isAccountant() || isSales() || isWarehouse(); }
+
+    // A customer account. The shopId claim is required: a SHOP token without
+    // one is half-provisioned and gets nothing.
+    function myShopId()     { return request.auth.token.get('shopId', ''); }
+    function isShop()       { return signedIn() && role() == 'SHOP' && myShopId() != ''; }
 
     function shopDoc(shopId) {
       return get(/databases/$(database)/documents/shops/$(shopId)).data;
+    }
+
+    function voucherAfter(voucherId) {
+      return getAfter(/databases/$(database)/documents/vouchers/$(voucherId)).data;
     }
 
     // The cached lock flag plus a live override. This is the cheap layer of
     // the three described in docs/FIRESTORE_SCHEMA.md §2.3 — the authoritative
     // check is onVoucherWrite, which sees the true clock.
     function shopAcceptsCredit(shopId) {
-      let shop = shopDoc(shopId);
-      return shop.credit.lockedUntilPaid != true
-        || (shop.credit.override != null
-            && shop.credit.override.expiresAt > request.time);
+      let credit = shopDoc(shopId).get('credit', {});
+      return credit.get('lockedUntilPaid', false) != true
+        || (credit.get('override', null) != null
+            && credit.override.expiresAt > request.time);
     }
 
     function unchanged(field) {
@@ -40,63 +73,184 @@ service cloud.firestore {
         || request.resource.data[field] == resource.data[field];
     }
 
-    // ---------------------------------------------------------------- users
-    match /users/{uid} {
-      allow read: if isAdmin() || (signedIn() && request.auth.uid == uid);
-      allow write: if isAdmin();
+    // ⚠️ Mirror of BOOTSTRAP_ADMIN_EMAILS in plan-b's src/config/admins.ts and
+    // of storage.rules there. `email_verified` is required, or anyone could
+    // register an email/password account claiming the address.
+    function isBootstrapAdmin() {
+      return signedIn()
+        && request.auth.token.get('email_verified', false) == true
+        && request.auth.token.get('email', '') in [
+             'kyawwinhtun56@gmail.com',
+             'kyawwinhtun564@gmail.com'
+           ];
     }
 
-    // ---------------------------------------------------------------- shops
+    // The web app's catalogue editors: a POS admin, the bootstrap owner, or an
+    // admins/{uid} allowlist entry. Grants frames / admins / the legacy credit
+    // ledger — nothing in the POS collections below.
+    function isCatalogueAdmin() {
+      return isAdmin()
+        || isBootstrapAdmin()
+        || (signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // ================================================================= users
+    //
+    // One document per account, shared by both apps. The POS keeps the staff
+    // profile here (role, repCode, townships — admin-written); the web app
+    // records who signed in (profile fields only, self-written). A user may
+    // touch only the profile fields, so nobody can write themselves a role —
+    // and the role that matters is the token claim anyway.
+    match /users/{uid} {
+      function profileOnly(keys) {
+        return keys.hasOnly(['uid', 'email', 'displayName', 'photoURL', 'emailVerified', 'lastSignInAt']);
+      }
+
+      allow get: if isAdmin() || (signedIn() && request.auth.uid == uid);
+      allow list: if isAdmin();
+
+      allow create: if isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && request.resource.data.get('uid', uid) == uid
+            && profileOnly(request.resource.data.keys()));
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && request.resource.data.get('uid', uid) == uid
+            && profileOnly(request.resource.data.diff(resource.data).affectedKeys()));
+      allow delete: if isAdmin();
+
+      // The web app buyer's own order history. Ownership is the path.
+      match /orders/{reference} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // ================================================================= shops
     match /shops/{shopId} {
       allow read: if isAdmin() || isAccountant() || isWarehouse()
-        || (isSales() && resource.data.salesRepId == request.auth.uid);
+        || (isSales() && resource.data.salesRepId == request.auth.uid)
+        || (isShop() && myShopId() == shopId);
 
       allow create: if isAdmin() || isSales();
 
       // credit.override is written by the grantCreditOverride callable only.
       // A client that could set it could unlock itself, which would make the
       // master password decorative.
-      allow update: if (isAdmin() || isAccountant()
+      allow update: if ((isAdmin() || isAccountant()
                         || (isSales() && resource.data.salesRepId == request.auth.uid))
-        && unchanged('credit.override')
-        && !(request.resource.data.credit.diff(resource.data.credit)
-              .affectedKeys().hasAny(['override']));
+                       && unchanged('credit.override')
+                       && !(request.resource.data.get('credit', {}).diff(resource.data.get('credit', {}))
+                             .affectedKeys().hasAny(['override'])))
+        || (isShop() && myShopId() == shopId && webPurchaseShopUpdate());
+
+      // A shop's own web order may raise its balance by exactly that order —
+      // no more, never past the credit limit, and only alongside the voucher
+      // it names (`credit.lastWebVoucherId`), created in the same batch.
+      function webPurchaseShopUpdate() {
+        let before = resource.data;
+        let after = request.resource.data;
+        let beforeCredit = before.get('credit', {});
+        let afterCredit = after.get('credit', {});
+        let beforeStats = before.get('stats', {});
+        let afterStats = after.get('stats', {});
+        let voucher = voucherAfter(afterCredit.get('lastWebVoucherId', 'none'));
+        return after.diff(before).affectedKeys().hasOnly(['credit', 'stats'])
+          && afterCredit.diff(beforeCredit).affectedKeys()
+               .hasOnly(['outstanding', 'recalcAt', 'lastWebVoucherId'])
+          && afterStats.diff(beforeStats).affectedKeys()
+               .hasOnly(['lastPurchaseAt', 'lifetimeSales', 'voucherCount'])
+          && voucher.shopId == shopId
+          && voucher.channel == 'WEB'
+          && voucher.createdBy == request.auth.uid
+          && afterCredit.outstanding == beforeCredit.get('outstanding', 0) + voucher.balanceDue
+          && afterStats.get('lifetimeSales', 0) == beforeStats.get('lifetimeSales', 0) + voucher.grandTotal
+          && afterStats.get('voucherCount', 0) == beforeStats.get('voucherCount', 0) + 1
+          && (before.get('creditLimit', 0) == 0 || afterCredit.outstanding <= before.creditLimit);
+      }
 
       allow delete: if false; // deactivate instead — history must survive
 
       match /ledger/{entryId} {
         allow read: if isAdmin() || isAccountant()
-          || (isSales() && shopDoc(shopId).salesRepId == request.auth.uid);
-        allow create: if isAdmin() || isAccountant() || isSales();
+          || (isSales() && shopDoc(shopId).salesRepId == request.auth.uid)
+          || (isShop() && myShopId() == shopId);
+        allow create: if isAdmin() || isAccountant() || isSales()
+          || (isShop() && myShopId() == shopId
+              && request.resource.data.type == 'VOUCHER'
+              && request.resource.data.credit == 0
+              && voucherAfter(request.resource.data.refId).shopId == shopId
+              && request.resource.data.debit == voucherAfter(request.resource.data.refId).grandTotal);
         allow update, delete: if false; // append-only
       }
     }
 
-    // ------------------------------------------------------------- vouchers
+    // ============================================================== vouchers
     match /vouchers/{voucherId} {
       allow read: if isAdmin() || isAccountant() || isWarehouse()
-        || (isSales() && resource.data.salesRepId == request.auth.uid);
+        || (isSales() && resource.data.salesRepId == request.auth.uid)
+        || (isShop() && resource.data.shopId == myShopId());
 
       // THE CREDIT GATE. Consignment moves sample stock and carries no debt,
       // so it is never blocked by ageing.
-      allow create: if (isAdmin() || isSales())
-        && request.resource.data.shopId is string
-        && (request.resource.data.type == 'CONSIGNMENT'
-            || shopAcceptsCredit(request.resource.data.shopId));
+      allow create: if ((isAdmin() || isSales())
+          && request.resource.data.shopId is string
+          && (request.resource.data.type == 'CONSIGNMENT'
+              || shopAcceptsCredit(request.resource.data.shopId)))
+        || (isShop() && webVoucherCreate());
+
+      // A shop orders for itself, on credit, as a plain SALE billed to its own
+      // rep. The arithmetic must add up; the only discount a shop's own order
+      // may carry is the 2% on-time-payment coupon. Line prices cannot be
+      // checked here (rules cannot loop) — that belongs to onVoucherWrite.
+      function webVoucherCreate() {
+        let v = request.resource.data;
+        return v.shopId == myShopId()
+          && v.channel == 'WEB'
+          && v.type == 'SALE'
+          && v.status == 'ISSUED'
+          && v.createdBy == request.auth.uid
+          && v.salesRepId == shopDoc(myShopId()).get('salesRepId', null)
+          && v.items is list && v.items.size() > 0 && v.items.size() <= 240
+          && v.subtotal is int && v.subtotal > 0
+          && v.discount is int && v.discount >= 0
+          && (v.discount == 0
+              || (v.discountReason == 'LOYALTY_ON_TIME' && v.discount <= v.subtotal * 0.02 + 1))
+          && v.grandTotal == v.subtotal - v.discount
+          && v.paidAmount == 0
+          && v.paymentAtIssue == 0
+          && v.balanceDue == v.grandTotal
+          && shopAcceptsCredit(myShopId());
+      }
 
       // A rep may correct their own voucher on the day it was issued; after
       // that, corrections go through the accountant so the debt position is
-      // not rewritten behind the office's back.
+      // not rewritten behind the office's back. The one exception is a
+      // defective-goods credit note, which may lower the balance of the rep's
+      // own shop's vouchers on any day — `returnVoucherUpdate`.
       allow update: if isAdmin() || isAccountant()
         || (isSales()
             && resource.data.salesRepId == request.auth.uid
             && resource.data.status in ['DRAFT', 'ISSUED']
-            && resource.data.issueDate > request.time - duration.value(1, 'd'));
+            && resource.data.issueDate > request.time - duration.value(1, 'd'))
+        || (isSales()
+            && resource.data.salesRepId == request.auth.uid
+            && returnVoucherUpdate());
+
+      function returnVoucherUpdate() {
+        let after = request.resource.data;
+        return after.diff(resource.data).affectedKeys().hasOnly([
+                 'balanceDue', 'creditedAmount', 'status', 'settledAt',
+                 'updatedAt', 'returnedQty', 'lastCreditNoteId'])
+          && after.get('balanceDue', 0) >= 0
+          && after.get('balanceDue', 0) <= resource.data.get('balanceDue', 0)
+          && after.status in ['ISSUED', 'PARTIAL', 'PAID', 'OVERDUE']
+          && existsAfter(/databases/$(database)/documents/creditNotes/$(after.lastCreditNoteId));
+      }
 
       allow delete: if false; // void, never delete
     }
 
-    // ------------------------------------------------------------- payments
+    // ============================================================== payments
     match /payments/{paymentId} {
       allow read: if isAdmin() || isAccountant()
         || (isSales() && resource.data.receivedBy == request.auth.uid);
@@ -105,24 +259,52 @@ service cloud.firestore {
     }
 
     match /creditNotes/{noteId} {
-      allow read: if isAdmin() || isAccountant() || isSales();
-      allow create: if isAdmin() || isAccountant();
+      allow read: if isAdmin() || isAccountant() || isSales()
+        || (isShop() && resource.data.shopId == myShopId());
+      // A rep may issue the one kind of credit note that a return of their own
+      // shop's defective goods produces; everything else is the office's.
+      allow create: if isAdmin() || isAccountant()
+        || (isSales()
+            && request.resource.data.reason == 'RETURN_DEFECTIVE'
+            && shopDoc(request.resource.data.shopId).salesRepId == request.auth.uid);
       allow update, delete: if false;
     }
 
-    // ------------------------------------------------------------ inventory
+    // ============================================================= inventory
+    //
+    // products carry landed cost, so they are staff-only: a shop must never be
+    // able to read what a frame cost. variants carry stock only and stay
+    // readable to shops, which is all a web order needs.
     match /products/{productId} {
-      allow read: if signedIn();
+      allow read: if isStaff();
       allow write: if isAdmin() || isWarehouse();
 
       match /variants/{colorCode} {
-        allow read: if signedIn();
+        allow read: if isStaff() || isShop();
         // Sales reps decrement stock as a side effect of issuing a voucher,
         // so they need write access to the stock map — but nothing else.
         allow create, delete: if isAdmin() || isWarehouse();
         allow update: if isAdmin() || isWarehouse()
           || (isSales() && request.resource.data.diff(resource.data)
-                .affectedKeys().hasOnly(['stock', 'reserved']));
+                .affectedKeys().hasOnly(['stock', 'reserved', 'lastSaleRef']))
+          || (isShop() && webStockDecrement());
+
+        // A shop's web order may only take sellable stock DOWN, never below
+        // zero, and only alongside a voucher of its own in the same batch.
+        // Because `increment()` resolves before the rules run, two shops
+        // racing for the last pieces cannot both pass: the second batch would
+        // take the count negative and is refused whole.
+        function webStockDecrement() {
+          let before = resource.data.get('stock', {});
+          let after = request.resource.data.get('stock', {});
+          let sale = voucherAfter(request.resource.data.get('lastSaleRef', 'none'));
+          return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'lastSaleRef'])
+            && after.diff(before).affectedKeys().hasOnly(['LOC-MAIN'])
+            && after['LOC-MAIN'] < before.get('LOC-MAIN', 0)
+            && after['LOC-MAIN'] >= 0
+            && sale.shopId == myShopId()
+            && sale.createdBy == request.auth.uid;
+        }
       }
     }
 
@@ -134,17 +316,37 @@ service cloud.firestore {
     // nested rule, which is narrower. `variants` exists nowhere else in the
     // schema, so the recursive wildcard cannot reach anything unintended.
     match /{path=**}/variants/{colorCode} {
-      allow read: if signedIn();
+      allow read: if isStaff();
     }
 
     match /inventoryMoves/{moveId} {
-      allow read: if signedIn();
-      allow create: if isAdmin() || isWarehouse() || isSales();
+      allow read: if isStaff();
+      allow create: if isAdmin() || isWarehouse() || isSales()
+        || (isShop()
+            && request.resource.data.channel == 'WEB'
+            && request.resource.data.type == 'SALE'
+            && request.resource.data.qty < 0
+            && voucherAfter(request.resource.data.refId).shopId == myShopId());
       allow update, delete: if false; // the stock journal is immutable
     }
 
+    // One record per returned-defective line, created by processReturn in the
+    // web app alongside the credit note and the LOC-DAMAGED stock move. The
+    // warehouse moves `status` on as it inspects; nothing is ever deleted.
+    match /damaged_stock/{recordId} {
+      allow read: if isAdmin() || isAccountant() || isWarehouse()
+        || (isSales() && resource.data.salesRepId == request.auth.uid);
+      allow create: if isAdmin() || isWarehouse()
+        || (isSales()
+            && request.resource.data.salesRepId == request.auth.uid
+            && shopDoc(request.resource.data.shopId).salesRepId == request.auth.uid
+            && existsAfter(/databases/$(database)/documents/creditNotes/$(request.resource.data.creditNoteId)));
+      allow update: if isAdmin() || isWarehouse();
+      allow delete: if false;
+    }
+
     match /stockLocations/{locationId} {
-      allow read: if signedIn();
+      allow read: if isStaff();
       allow write: if isAdmin() || isWarehouse();
     }
 
@@ -160,7 +362,7 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ------------------------------------------------- purchasing & finance
+    // ================================================= purchasing & finance
     match /purchaseOrders/{poId} {
       allow read: if isAdmin() || isAccountant() || isWarehouse();
       allow write: if isAdmin() || isWarehouse();
@@ -175,19 +377,56 @@ service cloud.firestore {
       allow write: if false; // written by the nightly Cloud Function only
     }
 
-    // ------------------------------------------------------------ audit log
+    // ============================================================ audit log
     match /auditLogs/{logId} {
       allow read: if isAdmin();
       allow create: if signedIn();
       allow update, delete: if false; // admins included — this is the point
     }
 
-    // ------------------------------------------------------------- settings
+    // ============================================================= settings
     match /settings/{docId} {
       // masterPasswordHash lives here; the callable reads it with admin
       // credentials, so no client ever needs read access to this document.
       allow read: if false;
       allow write: if false;
+    }
+
+    // ============================================ web app: catalogue & links
+
+    // The web catalogue. Public read — buyers browse without an account.
+    match /frames/{frameId} {
+      allow read: if true;
+      allow write: if isCatalogueAdmin();
+    }
+
+    // frames/{id} → the POS product it is (see plan-b lib/pos/catalog-link.ts).
+    // Holds a product id and nothing else, so it can be read by the shops that
+    // need it to order without exposing anything a product document carries.
+    match /posLinks/{frameId} {
+      allow read: if signedIn();
+      allow write: if isAdmin() || isCatalogueAdmin();
+    }
+
+    // The web app's catalogue-editor allowlist. Readable by the person it
+    // names; created only by an existing catalogue admin; never edited or
+    // deleted from a client.
+    match /admins/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if false;
+      allow create: if isCatalogueAdmin();
+      allow update, delete: if false;
+    }
+
+    // The web app's older, staff-only credit ledger (one running balance per
+    // shop). Kept working until its data is migrated to shops/vouchers.
+    match /creditShops/{shopId} {
+      allow read, write: if isCatalogueAdmin();
+    }
+
+    match /creditOrders/{orderId} {
+      allow read, create, delete: if isCatalogueAdmin();
+      allow update: if false;
     }
   }
 }
