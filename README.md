@@ -61,6 +61,7 @@ Then, with the web config in `.env.local` and `VITE_DEMO_MODE=false`:
 npx firebase login
 npm run deploy                                          # builds, then deploys hosting + rules + indexes
 npm run set-role -- you@example.com ADMIN "Your Name"   # ADMIN | ACCOUNTANT | SALES | WAREHOUSE
+npm run set-role -- shop@example.com SHOP <shopId>      # a customer account for the Plan B web app
 ```
 
 Open `https://<project-id>.firebaseapp.com` rather than `.web.app`: it matches the config's
@@ -73,6 +74,15 @@ denied. `scripts/set-role.mjs` sets the claim and writes `users/{uid}` together.
 on the Users screen only writes the document, so run `set-role` again after one. An account with
 no role sees a "Waiting for access" screen rather than the app; once `set-role` has run,
 **Check again** there picks the role up without signing out.
+
+**`SHOP` accounts are customers, not staff.** They sign in to the Plan B web app
+(helium33/plan-b), which shares this Firestore database: they see their own shop's credit and
+orders, place credit orders that land here as ordinary vouchers (`channel: 'WEB'`), and never
+get past the "Waiting for access" screen in this app. `<shopId>` is the `shops/{id}` document id.
+
+**`firestore.rules` is shared with plan-b and must stay byte-identical in both repos.** Firestore
+has one ruleset per database and a deploy from either repo replaces it outright, so each copy
+covers both apps. Change it in one repo, copy it to the other, then deploy.
 
 `npm run build:preview` makes the static build used for Artifact previews (hash routing,
 relative asset paths, no service worker). Don't deploy that build.

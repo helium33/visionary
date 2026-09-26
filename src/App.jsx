@@ -5,6 +5,7 @@ import { LoadingScreen, PageLoader } from './components/ui/LoadingScreen';
 import { useAuth } from './context/AuthContext';
 import { useLocale } from './context/LocaleContext';
 import { useCreditData } from './hooks/useCreditData';
+import { PERMISSIONS } from './lib/constants';
 import Login from './pages/Login';
 import NoAccess from './pages/NoAccess';
 import Placeholder from './pages/Placeholder';
@@ -41,9 +42,11 @@ function ProtectedRoute({ children }) {
 
   if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
 
-  // Signed in, but with no role every Firestore rule denies — don't mount
-  // screens that would sit on their loading skeletons forever.
-  if (!isDemoMode && !user.role) return <NoAccess />;
+  // Signed in, but with no staff role every POS rule denies — don't mount
+  // screens that would sit on their loading skeletons forever. That includes
+  // SHOP: a customer account belongs to the Plan B web app, and the shared
+  // rules give it its own shop's account only, never the back office.
+  if (!isDemoMode && !(user.role && Object.hasOwn(PERMISSIONS, user.role))) return <NoAccess />;
 
   return children;
 }
