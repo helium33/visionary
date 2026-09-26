@@ -14,3 +14,6 @@ dist-dashboard
 *-debug.log
 service-account*.json
 .env.local.*
+
+# Local Netlify CLI state (site link, deploy cache)
+.netlify
