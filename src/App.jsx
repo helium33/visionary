@@ -5,6 +5,7 @@ import { LoadingScreen, PageLoader } from './components/ui/LoadingScreen';
 import { useAuth } from './context/AuthContext';
 import { useLocale } from './context/LocaleContext';
 import { useCreditData } from './hooks/useCreditData';
+import { useWebCatalogueSync } from './hooks/useWebCatalogueSync';
 import { PERMISSIONS } from './lib/constants';
 import Login from './pages/Login';
 import NoAccess from './pages/NoAccess';
@@ -71,6 +72,8 @@ function AuthedApp() {
   // Lifted so the shell's sync badge reflects the same listener the pages use.
   const { sync } = useCreditData();
   const { t } = useLocale();
+  // An admin's visit brings new POS frames into the Plan B web catalogue.
+  useWebCatalogueSync();
 
   return (
     <AppShell sync={sync}>

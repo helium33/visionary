@@ -649,3 +649,14 @@ that remains the job of `onVoucherWrite`.
 
 `{ productId, frameCode, linkedAt }` — which POS product a web-catalogue frame is. Written by an
 admin from the web app's frames page; holds no cost, so a shop can read it to place an order.
+
+### `frames/{frameId}` — the web catalogue, filled from here
+
+When an ADMIN opens the POS (`hooks/useWebCatalogueSync.js`, once per tab), every active FRAME
+product is copied into the web app's public catalogue as `frames/pos-<productId>` with
+`source: 'POS'` and `posProductId` — model, name (`brand`), colours, sizes, the STANDARD price and
+in-stock flags, **never cost**. Photos, a display name and wording are added later on the web app
+(Admin → Frames → Edit) and survive every later sync; price, colours and stock keep following the
+POS. The web app groups frames by `brand` exactly as typed, so "Soulmate" and "Soulmate 2" are two
+groups. `domain/webCatalogue.js` here and plan-b `src/lib/pos/catalog-sync.ts` are the same sync
+and must write the same shape.
