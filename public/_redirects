@@ -1,0 +1,2 @@
+# Single-page app: every route that is not a real file loads the app.
+/*    /index.html    200

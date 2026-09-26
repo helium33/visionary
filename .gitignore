@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+dev-dist
+.env
+.env.local
+*.local
+.DS_Store
+.firebase
+coverage
+dist-preview
+dist-login-preview
+dist-dashboard
+*-debug.log
+service-account*.json
+.env.local.*
