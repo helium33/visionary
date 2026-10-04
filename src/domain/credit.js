@@ -168,7 +168,7 @@ function readOverride(shop, today) {
  * Returns `allowed:false, requiresOverride:true` rather than throwing, so the
  * UI can offer the master-password dialog instead of a dead end.
  */
-export function canIssueVoucher(creditState, { amount = 0, isConsignment = false } = {}) {
+export function canIssueVoucher(creditState, { amount = 0, payment = 0, isConsignment = false } = {}) {
   // `details` carries the figures behind `reason`, so the UI can word the
   // explanation in the reader's language rather than show this English.
   const deny = (code, reason, details = {}) => ({
@@ -202,6 +202,22 @@ export function canIssueVoucher(creditState, { amount = 0, isConsignment = false
       `Shop is ${creditState.maxDaysOverdue} day(s) past the ${CREDIT_TERM_DAYS}-day term ` +
         `on K ${creditState.overdueAmount.toLocaleString()}.`,
       { days: creditState.maxDaysOverdue, term: CREDIT_TERM_DAYS, amount: creditState.overdueAmount },
+    );
+  }
+
+  // One credit voucher at a time. Each voucher is due 14 days after it is
+  // issued, and a new one that leaves money owing waits until every earlier
+  // voucher is paid in full — not merely until it is no longer overdue. A sale
+  // paid in full at the counter adds no credit, so it is not held back. The
+  // web app's `canPurchase` applies the same rule to a shop's own orders.
+  const onAccount = (Number(amount) || 0) - (Number(payment) || 0);
+  if (creditState.openCount > 0 && onAccount > 0) {
+    const first = creditState.oldestVoucher;
+    return deny(
+      'UNPAID_PREVIOUS',
+      `Voucher ${first?.voucherNo ?? ''} still has K ${creditState.outstanding.toLocaleString()} ` +
+        'to pay; a new credit voucher waits until it is paid in full.',
+      { voucherNo: first?.voucherNo ?? null, amount: creditState.outstanding, count: creditState.openCount },
     );
   }
 

@@ -124,9 +124,13 @@ export default function VoucherCreate() {
   const gate = useMemo(
     () =>
       state
-        ? canIssueVoucher(state, { amount: totals.grandTotal, isConsignment: type === 'CONSIGNMENT' })
+        ? canIssueVoucher(state, {
+            amount: totals.grandTotal,
+            payment: totals.paymentAtIssue,
+            isConsignment: type === 'CONSIGNMENT',
+          })
         : { allowed: false, requiresOverride: false, code: 'NO_SHOP', reason: null },
-    [state, totals.grandTotal, type],
+    [state, totals.grandTotal, totals.paymentAtIssue, type],
   );
 
   const addLines = (incoming) => {

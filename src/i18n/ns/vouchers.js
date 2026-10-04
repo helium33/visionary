@@ -61,6 +61,7 @@ export const vouchers = {
     outstandingLimit: 'Outstanding K {outstanding} of K {limit} limit · K {available} available',
     outstandingNoLimit: 'Outstanding K {outstanding} · no credit limit set',
     overLimit: 'Over credit limit',
+    unpaidPrevious: 'Earlier voucher not paid yet',
     shopLocked: 'Shop is locked',
     releaseWithPassword: 'Release with master password',
     askOffice: 'Ask the office to release this shop — only an admin can.',
@@ -68,6 +69,8 @@ export const vouchers = {
       MANUAL_HOLD: 'Account is on manual hold by the accountant.',
       OVERDUE_LOCK: 'Shop is {days} day(s) past the {term}-day term on K {amount}.',
       OVER_LIMIT: 'This voucher takes the balance to K {projected}, over the K {limit} limit.',
+      UNPAID_PREVIOUS:
+        'Voucher {voucherNo} still has K {amount} to pay. A new credit voucher waits until it is paid in full — or take full payment for this one now.',
     },
 
     searchModel: 'Search model number',
@@ -221,6 +224,7 @@ export const vouchers = {
     outstandingLimit: 'ကျန်ငွေ K {outstanding} / ကန့်သတ်ငွေ K {limit} · ထပ်ရောင်းနိုင်ငွေ K {available}',
     outstandingNoLimit: 'ကျန်ငွေ K {outstanding} · အကြွေးကန့်သတ်ငွေ မသတ်မှတ်ရသေး',
     overLimit: 'အကြွေးကန့်သတ်ငွေ ကျော်နေသည်',
+    unpaidPrevious: 'ယခင်ဘောက်ချာ မကျေသေးပါ',
     shopLocked: 'ဆိုင်ကို ပိတ်ထားသည်',
     releaseWithPassword: 'မာစတာစကားဝှက်ဖြင့် ဖွင့်ရန်',
     askOffice: 'ဤဆိုင်ကို ဖွင့်ပေးရန် ရုံးကို တောင်းဆိုပါ — အက်ဒမင်သာ ဖွင့်နိုင်ပါသည်။',
@@ -228,6 +232,8 @@ export const vouchers = {
       MANUAL_HOLD: 'စာရင်းကိုင်က ဤအကောင့်ကို ယာယီ ရပ်ဆိုင်းထားပါသည်။',
       OVERDUE_LOCK: 'K {amount} အတွက် ရက် {term} ရက် သက်တမ်းထက် {days} ရက် ကျော်နေပါသည်။',
       OVER_LIMIT: 'ဤဘောက်ချာကြောင့် ကျန်ငွေ K {projected} ဖြစ်လာပြီး ကန့်သတ်ငွေ K {limit} ကို ကျော်ပါမည်။',
+      UNPAID_PREVIOUS:
+        'ဘောက်ချာ {voucherNo} တွင် K {amount} ပေးရန် ကျန်ပါသေးသည်။ ၎င်းကို အပြည့်ပေးချေပြီးမှ အကြွေးဘောက်ချာ အသစ် ထုတ်နိုင်ပါမည် — သို့မဟုတ် ဤဘောက်ချာကို ယခု အပြည့်ငွေချေပါ။',
     },
 
     searchModel: 'မော်ဒယ်နံပါတ် ရှာရန်',

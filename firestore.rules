@@ -199,9 +199,9 @@ service cloud.firestore {
         || (isShop() && webVoucherCreate());
 
       // A shop orders for itself, on credit, as a plain SALE billed to its own
-      // rep. The arithmetic must add up; the only discount a shop's own order
-      // may carry is the 2% on-time-payment coupon. Line prices cannot be
-      // checked here (rules cannot loop) — that belongs to onVoucherWrite.
+      // rep. The arithmetic must add up, and a shop's own order carries no
+      // discount at all. Line prices cannot be checked here (rules cannot
+      // loop) — that belongs to onVoucherWrite.
       function webVoucherCreate() {
         let v = request.resource.data;
         return v.shopId == myShopId()
@@ -212,10 +212,8 @@ service cloud.firestore {
           && v.salesRepId == shopDoc(myShopId()).get('salesRepId', null)
           && v.items is list && v.items.size() > 0 && v.items.size() <= 240
           && v.subtotal is int && v.subtotal > 0
-          && v.discount is int && v.discount >= 0
-          && (v.discount == 0
-              || (v.discountReason == 'LOYALTY_ON_TIME' && v.discount <= v.subtotal * 0.02 + 1))
-          && v.grandTotal == v.subtotal - v.discount
+          && v.discount == 0
+          && v.grandTotal == v.subtotal
           && v.paidAmount == 0
           && v.paymentAtIssue == 0
           && v.balanceDue == v.grandTotal

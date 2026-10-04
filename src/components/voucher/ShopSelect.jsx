@@ -164,7 +164,13 @@ export function CreditGate({ shop, state, gate, canOverride, onRequestOverride }
     <Banner
       tone="critical"
       icon={gate.code === 'OVER_LIMIT' ? Ban : Lock}
-      title={t(gate.code === 'OVER_LIMIT' ? 'vouchers.overLimit' : 'vouchers.shopLocked')}
+      title={t(
+        gate.code === 'OVER_LIMIT'
+          ? 'vouchers.overLimit'
+          : gate.code === 'UNPAID_PREVIOUS'
+            ? 'vouchers.unpaidPrevious'
+            : 'vouchers.shopLocked',
+      )}
       action={
         canOverride ? (
           <Button size="sm" variant="danger" icon={KeyRound} onClick={onRequestOverride}>
@@ -192,6 +198,8 @@ export function gateReasonText(gate, t) {
       return t('vouchers.gate.OVERDUE_LOCK', { days: d.days, term: d.term, amount: fmtMMK(d.amount) });
     case 'OVER_LIMIT':
       return t('vouchers.gate.OVER_LIMIT', { projected: fmtMMK(d.projected), limit: fmtMMK(d.limit) });
+    case 'UNPAID_PREVIOUS':
+      return t('vouchers.gate.UNPAID_PREVIOUS', { voucherNo: d.voucherNo ?? '—', amount: fmtMMK(d.amount) });
     default:
       return gate?.reason ?? null;
   }

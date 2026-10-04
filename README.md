@@ -245,7 +245,7 @@ issue ──▶ ACTIVE ──day 12──▶ WATCH ──day 15──▶ LOCKED 
                           admin override (30 min) ┘
 ```
 
-Three things are worth knowing before changing any of it:
+Four things are worth knowing before changing any of it:
 
 **1. Status is derived, never stored.** A shop that is fine at 08:00 is locked at midnight with
 no document having changed — time passed, that is all. `shops.credit.status` exists as a query
@@ -261,6 +261,13 @@ one voucher than have a rep blocked by a dead network.
 **3. The master password is verified on the server.** A client-side check ships the hash in the
 bundle. Rules deny `credit.override` to every client, so only the callable can grant it — which
 makes releasing a shop an online-only action on purpose, not by accident.
+
+**4. One credit voucher at a time.** A shop with any unpaid voucher cannot take another on
+credit, even inside its 14 days: `canIssueVoucher` answers `UNPAID_PREVIOUS` until every earlier
+voucher is paid in full. A sale paid in full at the counter adds no credit and goes through;
+anything else needs the master password. The shop's own web orders follow the same rule
+(`canPurchase` in helium33/plan-b). This one lives in the two apps, not the security rules —
+rules cannot list a shop's vouchers.
 
 ## Grid fast entry & pricing
 

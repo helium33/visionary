@@ -99,6 +99,11 @@ grace period; with `GRACE_DAYS = 0` a shop moves straight to `LOCKED`.
 | Firestore rules | A voucher write is rejected when `shops/{id}.credit.lockedUntilPaid == true` and no live override exists | No, but the cached flag can lag |
 | Cloud Function `onVoucherWrite` | Recomputes ageing server-side and voids a voucher issued against a locked shop | No — authoritative |
 
+One credit voucher at a time (`UNPAID_PREVIOUS`: no new credit while an earlier voucher is unpaid,
+even inside its term) is enforced by the UI of both apps only — the POS's `canIssueVoucher` and
+the web app's `canPurchase`. Rules cannot list a shop's open vouchers, and the cached
+`credit.outstanding` is a hint, not an authority to refuse a write on.
+
 Three layers because the first is convenience, the second is cheap, and only the third sees
 the true clock. A rep who is offline **can** write a voucher for a shop that locked while they
 were out of signal; it syncs, the function catches it, voids it and writes an audit entry.
@@ -621,7 +626,7 @@ differs in three fields:
 |---|---|---|
 | `items[].unitCost` | `null` | A shop's device never reads cost. `lineCost()` falls back to the product's current cost and flags it `costEstimated`. |
 | `bundlesPending` | `true` | Auto-bundling needs the product document. The warehouse moves the case and cloth when it packs. |
-| `discountReason` | `'LOYALTY_ON_TIME'` or `null` | The 2% on-time-payment coupon — the only discount a shop's own order may carry. |
+| `discount` | `0` | A shop's own order carries no discount, and the rules refuse anything else (`grandTotal == subtotal`). The 2% on-time coupon that used to be allowed here was withdrawn. |
 
 The rules re-check what matters against the post-batch state: stock may only go down and never
 below zero, the shop's balance must rise by exactly the voucher's `balanceDue` and stay within

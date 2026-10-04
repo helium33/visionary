@@ -117,10 +117,36 @@ describe('canIssueVoucher — the gate every voucher passes through', () => {
   });
 
   it('blocks a voucher that would breach the credit limit', () => {
-    const state = evaluateShopCredit(shop({ creditLimit: 1_000_000 }), [voucher(2, 900_000)], TODAY);
-    const gate = canIssueVoucher(state, { amount: 200_000 });
+    const state = evaluateShopCredit(shop({ creditLimit: 1_000_000 }), [voucher(20, 0)], TODAY);
+    const gate = canIssueVoucher(state, { amount: 1_200_000 });
     expect(gate.allowed).toBe(false);
     expect(gate.code).toBe('OVER_LIMIT');
+  });
+
+  it('holds a new credit voucher while an earlier one is unpaid, even inside its term', () => {
+    const state = evaluateShopCredit(shop(), [voucher(3, 120_000), voucher(30, 0)], TODAY);
+    const gate = canIssueVoucher(state, { amount: 50_000 });
+    expect(gate.allowed).toBe(false);
+    expect(gate.requiresOverride).toBe(true);
+    expect(gate.code).toBe('UNPAID_PREVIOUS');
+    expect(gate.details).toEqual({ voucherNo: 'VN-3', amount: 120_000, count: 1 });
+  });
+
+  it('lets a sale paid in full at the counter through, as it adds no credit', () => {
+    const state = evaluateShopCredit(shop(), [voucher(3, 120_000)], TODAY);
+    expect(canIssueVoucher(state, { amount: 50_000, payment: 50_000 }).allowed).toBe(true);
+    expect(canIssueVoucher(state, { amount: 50_000, payment: 20_000 }).code).toBe('UNPAID_PREVIOUS');
+  });
+
+  it('opens again once every earlier voucher is paid in full', () => {
+    const state = evaluateShopCredit(shop(), [voucher(3, 0), voucher(30, 0)], TODAY);
+    expect(canIssueVoucher(state, { amount: 50_000 }).allowed).toBe(true);
+  });
+
+  it('honours a live override over an unpaid earlier voucher', () => {
+    const overridden = shop({ credit: { override: { expiresAt: addDays(TODAY, 1) } } });
+    const state = evaluateShopCredit(overridden, [voucher(3, 120_000)], TODAY);
+    expect(canIssueVoucher(state, { amount: 50_000 }).allowed).toBe(true);
   });
 
   it('always allows consignment transfers', () => {

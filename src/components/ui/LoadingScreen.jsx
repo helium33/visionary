@@ -20,7 +20,7 @@ function LoaderMark({ size = 'lg' }) {
           large ? 'h-14 w-14 rounded-2xl' : 'h-8 w-8 rounded-lg'
         }`}
       >
-        <GlassesMark className={large ? 'h-8 w-5' : 'h-5 w-3'} />
+        <GlassesMark className={large ? 'h-8 w-auto' : 'h-5 w-auto'} />
       </span>
     </div>
   );
